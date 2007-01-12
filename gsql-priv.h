@@ -6,10 +6,12 @@
 /** @file gsql_priv Header
  */
 
+#include "gsqldriver.h"
+
 struct _gs_conn
 {
   gs_dsn* dsn;
-  gs_driver* drv;
+  gs_driver* driver;
   void* priv;
 };
 

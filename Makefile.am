@@ -15,7 +15,7 @@ libgsqlwrapper_la_LDFLAGS = \
   -version-info 0:0:0 -no-undefined -z now
 
 libgsqlwrapper_la_SOURCES = \
-  gsqlwrapper.c \
+  gsqlwraper.c \
   gsqldriver.c
 
 # test code
