@@ -1,30 +1,29 @@
 AUTOMAKE_OPTIONS = foreign
 
 AM_CFLAGS = \
-  $(GLIB_CFLAGS)
+  $(GLIB_CFLAGS) \
+  $(PGSQL_CFLAGS)
 
 # library
 
 lib_LTLIBRARIES = \
-  libgsqlwrapper.la
+  libgsqlw.la
 
-libgsqlwrapper_la_LIBADD = \
-  $(GLIB_LIBS)
+libgsqlw_la_LIBADD = \
+  $(GLIB_LIBS) \
+  $(PGSQL_LIBS)
 
-libgsqlwrapper_la_LDFLAGS = \
+libgsqlw_la_LDFLAGS = \
   -version-info 0:0:0 -no-undefined -z now
 
-libgsqlwrapper_la_SOURCES = \
-  gsqlwraper.c \
-  gsqldriver.c
+libgsqlw_la_SOURCES = \
+  gsqlw.c
 
 # test code
 
 bin_PROGRAMS = \
-  gsql-test
+  gsqlw-test
 
-gsql_test_SOURCES = \
-  test.c
-
-gsql_test_LDADD = \
-  libgsqlwrapper.la
+gsqlw_test_SOURCES = gsqlw-test.c
+gsqlw_test_LDADD = libgsqlw.la
+gsqlw_test_LDFLAGS = -static
