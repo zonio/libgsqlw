@@ -19,7 +19,9 @@ int gs_begin(gs_conn* conn);
 int gs_commit(gs_conn* conn);
 int gs_rollback(gs_conn* conn);
 
-gs_query* gs_query_new(gs_conn* conn, const char* sql);
+int gs_exec(gs_conn* conn, const char* sql_string, const char* fmt, ...);
+
+gs_query* gs_query_new(gs_conn* conn, const char* sql_string);
 void gs_query_free(gs_query* query);
 
 int gs_query_get(gs_query* query, const char* fmt, ...);

@@ -11,7 +11,7 @@ AC_PROG_CC
 AC_PROG_LN_S
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(GLIB, [glib-2.0 >= 2.8.0])
+PKG_CHECK_MODULES(GLIB, [glib-2.0 >= 2.8.0 gthread-2.0 >= 2.8.0])
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
