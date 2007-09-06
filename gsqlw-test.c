@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include "gsqlw.h"
 
+#define DSN "pgsql:dbname=test host=localhost user=postgres password=heslo"
+
 int gs_finish(gs_conn* c)
 {
   if (gs_get_error(c))
   {
-    printf("%s", gs_get_error(c));
+    g_print("ERROR: %s\n", gs_get_error(c));
     gs_rollback(c);
     return -1;
   }
@@ -20,7 +22,7 @@ static gpointer _thread_func(gpointer data)
   gs_query* q;
   gs_conn* c;
   
-  c = gs_connect("dbname=test host=localhost user=postgres password=heslo");
+  c = gs_connect(DSN);
   gs_begin(c);
 
   q = gs_query_new(c, "INSERT INTO test (id, name) VALUES ($1, $2)");
@@ -52,7 +54,7 @@ int main(int ac, char* av[])
   if (!g_thread_supported())
     g_thread_init(NULL);
 
-  c = gs_connect("dbname=test host=localhost user=postgres password=heslo");
+  c = gs_connect(DSN);
   gs_begin(c);
 
   //gs_exec(c, "DROP TABLE test;");

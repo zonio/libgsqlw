@@ -29,6 +29,6 @@ int gs_query_put(gs_query* query, const char* fmt, ...);
 
 int gs_query_get_rows(gs_query* query);
 int gs_query_get_num(gs_query* query); /* get first column from the first row */
-int gs_query_get_last_id(gs_query* query); /* get last insert id */
+int gs_query_get_last_id(gs_query* query, const char* seq_name); /* get last insert id */
 
 #endif

@@ -1,41 +1,66 @@
 #include <stdlib.h>
 #include <string.h>
-#include <libpq-fe.h>
 
-#include "gsqlw.h"
+#include "gsqlw-priv.h"
 
-struct _gs_conn
-{
-  char* dsn;
-  PGconn* pg;
-  char* error;
+static gs_driver* drivers[] = {
+  //&sqlite_driver,
+  &pgsql_driver,
 };
 
-struct _gs_query
-{
-  gs_conn* conn;
-  char* sql;
-  PGresult* pg_res;
-  int failed;
-  int row_no;
-};
+#define CONN_DRIVER(c) \
+  c->driver
+
+#define QUERY_DRIVER(q) \
+  q->conn->driver
+
+#define CONN_RETURN_IF_INVALID(c) \
+  if (c == NULL || c->error) \
+    return;
+
+#define CONN_RETURN_VAL_IF_INVALID(c, val) \
+  if (c == NULL || c->error) \
+    return val;
+
+#define QUERY_RETURN_IF_INVALID(q) \
+  if (q == NULL || q->conn->error) \
+    return;
+
+#define QUERY_RETURN_VAL_IF_INVALID(q, val) \
+  if (q == NULL || q->conn->error) \
+    return val;
 
 gs_conn* gs_connect(const char* dsn)
 {
-  PGconn *pg = PQconnectdb(dsn);
-  if (PQstatus(pg) == CONNECTION_BAD)
+  guint i;
+  gs_conn* conn = NULL;
+
+  if (dsn == NULL)
     return NULL;
-  gs_conn* conn = g_new0(gs_conn, 1);
-  conn->pg = pg;
-  conn->dsn = g_strdup(dsn);
-  return conn;
+  
+  for (i = 0; i < G_N_ELEMENTS(drivers); i++)
+  {
+    const char* name = drivers[i]->name;
+    if (g_str_has_prefix(dsn, name) && dsn[strlen(name)] == ':')
+    {
+      const char* drv_dsn = strchr(dsn, ':') + 1;
+      conn = drivers[i]->connect(drv_dsn);
+      if (conn)
+      {
+        conn->dsn = g_strdup(drv_dsn);
+        conn->driver = drivers[i];
+      }
+      return conn;
+    }
+  }
+
+  return NULL;
 }
 
 void gs_disconnect(gs_conn* conn)
 {
-  if (conn == NULL)
-    return;
-  PQfinish(conn->pg);
+  CONN_RETURN_IF_INVALID(conn);
+  CONN_DRIVER(conn)->disconnect(conn);
   g_free(conn->dsn);
   g_free(conn);
 }
@@ -43,126 +68,38 @@ void gs_disconnect(gs_conn* conn)
 const char* gs_get_error(gs_conn* conn)
 {
   if (conn == NULL)
-    return "conn is null";
+    return "Connection obejct is NULL";
   return conn->error;
 }
 
 int gs_begin(gs_conn* conn)
 {
-  if (conn == NULL)
-    return -1;
-  PGresult* res = PQexec(conn->pg, "BEGIN");
-  if (PQresultStatus(res) == PGRES_COMMAND_OK)
-  {
-    PQclear(res);
-    return 0;
-  }
-  conn->error = PQresultErrorMessage(res);
-  PQclear(res);
-  return -1;
+  CONN_RETURN_VAL_IF_INVALID(conn, -1);
+  return CONN_DRIVER(conn)->begin(conn);
 }
 
 int gs_commit(gs_conn* conn)
 {
-  if (conn == NULL)
-    return -1;
-  PGresult* res = PQexec(conn->pg, "COMMIT");
-  if (PQresultStatus(res) == PGRES_COMMAND_OK)
-  {
-    PQclear(res);
-    return 0;
-  }
-  conn->error = PQresultErrorMessage(res);
-  PQclear(res);
-  return -1;
+  CONN_RETURN_VAL_IF_INVALID(conn, -1);
+  return CONN_DRIVER(conn)->commit(conn);
 }
 
 int gs_rollback(gs_conn* conn)
 {
-  if (conn == NULL)
-    return -1;
-  PGresult* res = PQexec(conn->pg, "ROLLBACK");
-  if (PQresultStatus(res) == PGRES_COMMAND_OK)
-  {
-    PQclear(res);
-    return 0;
-  }
-  conn->error = PQresultErrorMessage(res);
-  PQclear(res);
-  return -1;
+  CONN_RETURN_VAL_IF_INVALID(conn, -1);
+  return CONN_DRIVER(conn)->rollback(conn);
 }
 
 gs_query* gs_query_new(gs_conn* conn, const char* sql_string)
 {
-  if (conn == NULL || conn->error != NULL)
-    return NULL;
-  gs_query* query = g_new0(gs_query, 1);
-  query->conn = conn;
-  query->sql = g_strdup(sql_string);
-  return query;
+  CONN_RETURN_VAL_IF_INVALID(conn, NULL);
+  return CONN_DRIVER(conn)->query_new(conn, sql_string);
 }
 
 int gs_query_putv(gs_query* query, const char* fmt, va_list ap)
 {
-  if (query == NULL || query->conn->error != NULL)
-    return -1;
-
-  int param_count = (fmt != NULL) ? strlen(fmt) : 0;
-  char** param_values = g_new0(char*, param_count);
-  int* free_list = g_new0(int, param_count);
-  int i, col = 0, retval = 0, has_is_null = 0, is_null;
-
-  for (i = 0; i < param_count; i++)
-  {
-    if (fmt[i] == 's')
-    {
-      char* value = (char*)va_arg(ap, char*);
-      if (!has_is_null || !is_null)
-        param_values[col] = value;
-      col++;
-    }
-    else if (fmt[i] == 'i')
-    {
-      int value = (int)va_arg(ap, int);
-      if (!has_is_null || !is_null)
-      {
-        param_values[col] = g_strdup_printf("%d", value);
-        free_list[col] = 1;
-      }
-      col++;
-    }
-    else if (fmt[i] == '?')
-    {
-      is_null = (int)va_arg(ap, int);
-    }
-    else
-    {
-      query->conn->error = "invalid format string";
-      retval = -1;
-      goto err;
-    }
-    has_is_null = fmt[i] == '?';
-  }
-
-  if (query->pg_res != NULL)
-    PQclear(query->pg_res);
-
-  query->pg_res = PQexecParams(query->conn->pg, query->sql, param_count, NULL, (const char* const*)param_values, NULL, NULL, 0);
-  if (PQresultStatus(query->pg_res) != PGRES_COMMAND_OK
-      && PQresultStatus(query->pg_res) != PGRES_TUPLES_OK)
-  {
-    query->conn->error = PQresultErrorMessage(query->pg_res);
-    retval = -1;
-  }
-  
- err:
-  for (i=0; i<param_count; i++)
-    if (free_list[i])
-      g_free(param_values[i]);
-  g_free(param_values);
-  g_free(free_list);
-
-  return retval;
+  QUERY_RETURN_VAL_IF_INVALID(query, -1);
+  return QUERY_DRIVER(query)->query_putv(query, fmt, ap);
 }
 
 int gs_query_put(gs_query* query, const char* fmt, ...)
@@ -176,86 +113,41 @@ int gs_query_put(gs_query* query, const char* fmt, ...)
 
   return retval;
 }
+
 void gs_query_free(gs_query* query)
 {
-  if (query == NULL)
-    return;
-  if (query->pg_res != NULL)
-    PQclear(query->pg_res);
-  g_free(query->sql);
-  g_free(query);
+  QUERY_RETURN_IF_INVALID(query);
+  QUERY_DRIVER(query)->query_free(query);
+}
+
+int gs_query_getv(gs_query* query, const char* fmt, va_list ap)
+{
+  QUERY_RETURN_VAL_IF_INVALID(query, -1);
+  return QUERY_DRIVER(query)->query_getv(query, fmt, ap);
 }
 
 int gs_query_get(gs_query* query, const char* fmt, ...)
 {
-  if (query == NULL || query->conn->error != NULL || query->pg_res == NULL)
-    return -1;
-
-  if (query->row_no >= gs_query_get_rows(query))
-    return 1;
-
-  int param_count = fmt != NULL ? strlen(fmt) : 0;
+  int retval;
   va_list ap;
-  int i, col = 0;
 
   va_start(ap, fmt);
-  for (i = 0; i < param_count; i++)
-  {
-    if (fmt[i] == 's')
-    {
-      char** str_ptr = (char**)va_arg(ap, char**);
-      if (PQgetisnull(query->pg_res, query->row_no, col))
-        *str_ptr = NULL;
-      else
-        *str_ptr = PQgetvalue(query->pg_res, query->row_no, col);
-      col++;
-    }
-    else if (fmt[i] == 'S')
-    {
-      char** str_ptr = (char**)va_arg(ap, char**);
-      if (PQgetisnull(query->pg_res, query->row_no, col))
-        *str_ptr = NULL;
-      else
-        *str_ptr = g_strdup(PQgetvalue(query->pg_res, query->row_no, col));
-      col++;
-    }
-    else if (fmt[i] == 'i')
-    {
-      int* int_ptr = (int*)va_arg(ap, int*);
-      if (!PQgetisnull(query->pg_res, query->row_no, col))
-        *int_ptr = atoi(PQgetvalue(query->pg_res, query->row_no, col));
-      col++;
-    }
-    else if (fmt[i] == '?') // null flag
-    {
-      int* int_ptr = (int*)va_arg(ap, int*);
-      *int_ptr = PQgetisnull(query->pg_res, query->row_no, col);
-    }
-    else
-    {
-      query->conn->error = "invalid format string";
-      va_end(ap);
-      return -1;
-    }
-  }
+  retval = gs_query_getv(query, fmt, ap);
   va_end(ap);
 
-  query->row_no++;
-  return 0;
+  return retval;
 }
 
 int gs_query_get_rows(gs_query* query)
 {
-  if (query == NULL)
-    return -1;
-  return PQntuples(query->pg_res);
+  QUERY_RETURN_VAL_IF_INVALID(query, -1);
+  return QUERY_DRIVER(query)->query_get_rows(query);
 }
 
-int gs_query_get_last_id(gs_query* query)
+int gs_query_get_last_id(gs_query* query, const char* seq_name)
 {
-  if (query == NULL)
-    return -1;
-  return 0;
+  QUERY_RETURN_VAL_IF_INVALID(query, -1);
+  return QUERY_DRIVER(query)->query_get_last_id(query, seq_name);
 }
 
 /* helper functions */
