@@ -59,7 +59,8 @@ gs_conn* gs_connect(const char* dsn)
 
 void gs_disconnect(gs_conn* conn)
 {
-  CONN_RETURN_IF_INVALID(conn);
+  if (conn == NULL)
+    return;
   CONN_DRIVER(conn)->disconnect(conn);
   g_free(conn->dsn);
   g_free(conn);
@@ -126,8 +127,8 @@ int gs_query_put(gs_query* query, const char* fmt, ...)
 
 void gs_query_free(gs_query* query)
 {
-  QUERY_RETURN_IF_INVALID(query);
-  QUERY_DRIVER(query)->query_free(query);
+  if (query)
+    QUERY_DRIVER(query)->query_free(query);
 }
 
 int gs_query_getv(gs_query* query, const char* fmt, va_list ap)
