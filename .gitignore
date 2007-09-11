@@ -23,3 +23,8 @@ TAGS
 /ylwrap
 /libtool
 /ltmain.sh
+
+/gsqlw-test
+/.test.db
+/.vimrc
+/tags
