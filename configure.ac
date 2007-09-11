@@ -42,6 +42,9 @@ if test -n "$PG_CONFIG"; then
     AC_CHECK_LIB(pq, PQprepare,AC_DEFINE(HAVE_PQPREPARE,1,[prepared statements]))
 fi
 
+SQLITE_LIBS="-lsqlite3"
+AC_SUBST(SQLITE_LIBS)
+
 # Output
 AC_OUTPUT([
     Makefile

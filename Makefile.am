@@ -11,14 +11,16 @@ lib_LTLIBRARIES = \
 
 libgsqlw_la_LIBADD = \
   $(GLIB_LIBS) \
-  $(PGSQL_LIBS)
+  $(PGSQL_LIBS) \
+  $(SQLITE_LIBS)
 
 libgsqlw_la_LDFLAGS = \
   -version-info 0:0:0 -no-undefined -z now
 
 libgsqlw_la_SOURCES = \
   gsqlw.c \
-  gsqlw-pgsql.c
+  gsqlw-pgsql.c \
+  gsqlw-sqlite.c
 
 # test code
 

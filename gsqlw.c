@@ -4,7 +4,7 @@
 #include "gsqlw-priv.h"
 
 static gs_driver* drivers[] = {
-  //&sqlite_driver,
+  &sqlite_driver,
   &pgsql_driver,
 };
 
