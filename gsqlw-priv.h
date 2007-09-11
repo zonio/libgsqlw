@@ -11,6 +11,7 @@ struct _gs_conn
   char* error;
   int error_code;
   gs_driver* driver;
+  int in_transaction;
 };
 
 struct _gs_query

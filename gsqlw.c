@@ -75,19 +75,29 @@ const char* gs_get_error(gs_conn* conn)
 int gs_begin(gs_conn* conn)
 {
   CONN_RETURN_VAL_IF_INVALID(conn, -1);
-  return CONN_DRIVER(conn)->begin(conn);
+  int retval = CONN_DRIVER(conn)->begin(conn);
+  if (retval == 0)
+    conn->in_transaction = TRUE;
+  return retval;
 }
 
 int gs_commit(gs_conn* conn)
 {
   CONN_RETURN_VAL_IF_INVALID(conn, -1);
-  return CONN_DRIVER(conn)->commit(conn);
+  int retval = CONN_DRIVER(conn)->commit(conn);
+  if (retval == 0)
+    conn->in_transaction = FALSE;
+  return retval;
 }
 
 int gs_rollback(gs_conn* conn)
 {
-  CONN_RETURN_VAL_IF_INVALID(conn, -1);
-  return CONN_DRIVER(conn)->rollback(conn);
+  if (conn == NULL)
+    return -1;
+  int retval = CONN_DRIVER(conn)->rollback(conn);
+  if (retval == 0)
+    conn->in_transaction = FALSE;
+  return retval;
 }
 
 gs_query* gs_query_new(gs_conn* conn, const char* sql_string)
@@ -169,4 +179,19 @@ int gs_exec(gs_conn* conn, const char* sql_string, const char* fmt, ...)
   gs_query_free(query);
 
   return retval;
+}
+
+int gs_finish(gs_conn* conn)
+{
+  if (conn == NULL)
+    return -1;
+  if (!conn->in_transaction)
+    return -1;
+  if (gs_get_error(conn))
+  {
+    gs_rollback(conn);
+    return -1;
+  }
+  gs_commit(conn);
+  return 0;
 }

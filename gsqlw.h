@@ -65,6 +65,17 @@ int gs_commit(gs_conn* conn);
  */
 int gs_rollback(gs_conn* conn);
 
+/** Finish current transaction. 
+ *
+ * This means commit if error is not set (see gs_get_error()) or rollback if it
+ * is.
+ *
+ * @param conn DB connection object.
+ *
+ * @return -1 on error (rollback), 0 on success.
+ */
+int gs_finish(gs_conn* conn);
+
 /** Execute simple SQL command without returning any results.
  *
  * @param conn DB connection object.
