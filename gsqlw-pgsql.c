@@ -170,7 +170,7 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
   int param_count = (fmt != NULL) ? strlen(fmt) : 0;
   char** param_values = g_new0(char*, param_count);
   int* free_list = g_new0(int, param_count);
-  int i, col = 0, retval = 0, has_is_null = 0, is_null = 0;
+  int i, col = 0, retval = 0;
   PGresult* res;
 
   for (i = 0; i < param_count; i++)
@@ -178,23 +178,24 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     if (fmt[i] == 's')
     {
       char* value = (char*)va_arg(ap, char*);
-      if (!has_is_null || !is_null)
-        param_values[col] = value;
+      param_values[col] = value;
       col++;
     }
     else if (fmt[i] == 'i')
     {
       int value = (int)va_arg(ap, int);
-      if (!has_is_null || !is_null)
-      {
-        param_values[col] = g_strdup_printf("%d", value);
-        free_list[col] = 1;
-      }
+      param_values[col] = g_strdup_printf("%d", value);
+      free_list[col] = 1;
       col++;
     }
     else if (fmt[i] == '?')
     {
-      is_null = (int)va_arg(ap, int);
+      int is_null = (int)va_arg(ap, int);
+      if (is_null)
+      {
+        i++;
+        col++;
+      }
     }
     else
     {
@@ -202,8 +203,8 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
       retval = -1;
       goto err;
     }
-    has_is_null = fmt[i] == '?';
   }
+  param_count = col;
 
   res = PQexecParams(CONN(query->conn)->pg, query->sql, param_count, NULL, (const char* const*)param_values, NULL, NULL, 0);
   if (PQresultStatus(res) != PGRES_COMMAND_OK
