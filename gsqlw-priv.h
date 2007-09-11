@@ -17,8 +17,6 @@ struct _gs_query
 {
   gs_conn* conn;
   char* sql;
-  int failed;
-  int row_no;
 };
 
 struct _gs_driver

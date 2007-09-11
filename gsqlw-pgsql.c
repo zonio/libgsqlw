@@ -14,6 +14,7 @@ struct _gs_query_pgsql
 {
   gs_query base;
   PGresult* pg_res;
+  int row_no;
 };
 
 #define CONN(c) ((struct _gs_conn_pgsql*)(c))
@@ -109,11 +110,12 @@ static void pgsql_gs_query_free(gs_query* query)
 static int pgsql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
 {
   PGresult* res = QUERY(query)->pg_res;
+  int row_no = QUERY(query)->row_no;
 
   if (res == NULL)
     return -1;
 
-  if (query->row_no >= gs_query_get_rows(query))
+  if (row_no >= gs_query_get_rows(query))
     return 1;
 
   int param_count = fmt != NULL ? strlen(fmt) : 0;
@@ -124,32 +126,32 @@ static int pgsql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     if (fmt[i] == 's')
     {
       char** str_ptr = (char**)va_arg(ap, char**);
-      if (PQgetisnull(res, query->row_no, col))
+      if (PQgetisnull(res, row_no, col))
         *str_ptr = NULL;
       else
-        *str_ptr = PQgetvalue(res, query->row_no, col);
+        *str_ptr = PQgetvalue(res, row_no, col);
       col++;
     }
     else if (fmt[i] == 'S')
     {
       char** str_ptr = (char**)va_arg(ap, char**);
-      if (PQgetisnull(res, query->row_no, col))
+      if (PQgetisnull(res, row_no, col))
         *str_ptr = NULL;
       else
-        *str_ptr = g_strdup(PQgetvalue(res, query->row_no, col));
+        *str_ptr = g_strdup(PQgetvalue(res, row_no, col));
       col++;
     }
     else if (fmt[i] == 'i')
     {
       int* int_ptr = (int*)va_arg(ap, int*);
-      if (!PQgetisnull(res, query->row_no, col))
-        *int_ptr = atoi(PQgetvalue(res, query->row_no, col));
+      if (!PQgetisnull(res, row_no, col))
+        *int_ptr = atoi(PQgetvalue(res, row_no, col));
       col++;
     }
     else if (fmt[i] == '?') // null flag
     {
       int* int_ptr = (int*)va_arg(ap, int*);
-      *int_ptr = PQgetisnull(res, query->row_no, col);
+      *int_ptr = PQgetisnull(res, row_no, col);
     }
     else
     {
@@ -159,7 +161,7 @@ static int pgsql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     }
   }
 
-  query->row_no++;
+  QUERY(query)->row_no++;
   return 0;
 }
 
