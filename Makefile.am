@@ -6,6 +6,9 @@ AM_CFLAGS = \
 
 # library
 
+include_HEADERS = \
+  gsqlw.h
+
 lib_LTLIBRARIES = \
   libgsqlw.la
 
@@ -18,9 +21,18 @@ libgsqlw_la_LDFLAGS = \
   -version-info 0:0:0 -no-undefined -z now
 
 libgsqlw_la_SOURCES = \
+  gsqlw.h \
   gsqlw.c \
+  gsqlw-priv.h \
   gsqlw-pgsql.c \
   gsqlw-sqlite.c
+
+# pkgconfig
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = gsqlw.pc
+
+EXTRA_DIST = gsqlw.pc.in
 
 # test code
 
