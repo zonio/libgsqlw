@@ -38,6 +38,16 @@ gs_conn* gs_connect(const char* dsn);
  */
 void gs_disconnect(gs_conn* conn);
 
+/** Get backend name.
+ *
+ * Currently this method return either 'sqlite' or 'pgsql'.
+ *
+ * @param conn DB connection object.
+ *
+ * @return Backend name or empty string on error.
+ */
+const char* gs_get_backend(gs_conn* conn);
+
 /** Get string describing last error.
  *
  * If this method returns non-NULL value all other methods except for

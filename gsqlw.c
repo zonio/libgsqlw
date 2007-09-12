@@ -66,6 +66,13 @@ void gs_disconnect(gs_conn* conn)
   g_free(conn);
 }
 
+const char* gs_get_backend(gs_conn* conn)
+{
+  if (conn == NULL)
+    return "";
+  return conn->driver->name;
+}
+
 const char* gs_get_errmsg(gs_conn* conn)
 {
   if (conn == NULL)
