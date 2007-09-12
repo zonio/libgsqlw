@@ -205,6 +205,11 @@ int gs_query_get_rows(gs_query* query);
  */
 int gs_query_get_last_id(gs_query* query, const char* seq_name);
 
+/* for advnaced users :-) */
+
+int gs_query_putv(gs_query* query, const char* fmt, va_list ap);
+int gs_query_getv(gs_query* query, const char* fmt, va_list ap);
+
 G_END_DECLS
 
 #endif
