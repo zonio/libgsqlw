@@ -15,19 +15,19 @@ static gs_driver* drivers[] = {
   q->conn->driver
 
 #define CONN_RETURN_IF_INVALID(c) \
-  if (c == NULL || c->error) \
+  if (gs_get_errcode(c) != GS_ERR_NONE) \
     return;
 
 #define CONN_RETURN_VAL_IF_INVALID(c, val) \
-  if (c == NULL || c->error) \
+  if (gs_get_errcode(c) != GS_ERR_NONE) \
     return val;
 
 #define QUERY_RETURN_IF_INVALID(q) \
-  if (q == NULL || q->conn->error) \
+  if (q == NULL || gs_get_errcode(q->conn) != GS_ERR_NONE) \
     return;
 
 #define QUERY_RETURN_VAL_IF_INVALID(q, val) \
-  if (q == NULL || q->conn->error) \
+  if (q == NULL || gs_get_errcode(q->conn) != GS_ERR_NONE) \
     return val;
 
 gs_conn* gs_connect(const char* dsn)
@@ -66,11 +66,35 @@ void gs_disconnect(gs_conn* conn)
   g_free(conn);
 }
 
-const char* gs_get_error(gs_conn* conn)
+const char* gs_get_errmsg(gs_conn* conn)
 {
   if (conn == NULL)
-    return "Connection obejct is NULL";
-  return conn->error;
+    return "Connection obejct is NULL.";
+  return conn->errmsg;
+}
+
+int gs_get_errcode(gs_conn* conn)
+{
+  if (conn == NULL)
+    return GS_ERR_OTHER;
+  return conn->errcode;
+}
+
+void gs_set_error(gs_conn* conn, int code, const char* msg)
+{
+  CONN_RETURN_IF_INVALID(conn);
+  conn->errcode = code;
+  g_free(conn->errmsg);
+  conn->errmsg = g_strdup(msg);
+}
+
+void gs_clear_error(gs_conn* conn)
+{
+  if (conn == NULL)
+    return;
+  conn->errcode = GS_ERR_NONE;
+  g_free(conn->errmsg);
+  conn->errmsg = NULL;
 }
 
 int gs_begin(gs_conn* conn)
@@ -188,7 +212,7 @@ int gs_finish(gs_conn* conn)
     return -1;
   if (!conn->in_transaction)
     return -1;
-  if (gs_get_error(conn))
+  if (gs_get_errcode(conn) != GS_ERR_NONE)
   {
     gs_rollback(conn);
     return -1;

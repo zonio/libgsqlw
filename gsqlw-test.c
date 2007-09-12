@@ -95,7 +95,7 @@ int main(int ac, char* av[])
     tests[i]();
 
     if (gs_finish(c) < 0)
-      g_print("ERROR: %s\n", gs_get_error(c));
+      g_print("ERROR: %s\n", gs_get_errmsg(c));
     gs_disconnect(c);
   }
 

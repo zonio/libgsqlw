@@ -9,7 +9,13 @@
 typedef struct _gs_conn gs_conn;
 typedef struct _gs_query gs_query;
 
-/* functions */
+enum _gs_errors
+{
+  GS_ERR_NONE = 0,
+  GS_ERR_OTHER,
+};
+
+G_BEGIN_DECLS
 
 /** Create connection to the database.
  *
@@ -35,11 +41,43 @@ void gs_disconnect(gs_conn* conn);
 /** Get string describing last error.
  *
  * If this method returns non-NULL value all other methods except for
- * gs_rollback() are inhibited.
+ * gs_rollback(), gs_finish(), gs_query_free() and gs_disconnect() are inhibited.
+ *
+ * @param conn DB connection object.
  *
  * @return Error string or NULL.
  */
-const char* gs_get_error(gs_conn* conn);
+const char* gs_get_errmsg(gs_conn* conn);
+
+/** Get error code.
+ *
+ * @param conn DB connection object.
+ *
+ * @return Error code, see enum _gs_errors for list of supported error codes.
+ */
+int gs_get_errcode(gs_conn* conn);
+
+/** Set error code and message.
+ *
+ * This is mainly for internal use, but knowledgable user can use it externally
+ * to handle errors too.
+ *
+ * @param conn DB connection object.
+ * @param code Error code (see enum _gs_errors for list of codes).
+ * @param msg Error message.
+ */
+void gs_set_error(gs_conn* conn, int code, const char* msg);
+
+/** Clear error state.
+ *
+ * Use with caution. If error was set during gs_query execution you must NOT
+ * continue using that query after clearing the error. Basically what you should
+ * do when error happens is aborting the current transaction if any and freeing
+ * current query. Then you can clear error and try again.
+ *
+ * @param conn DB connection object.
+ */
+void gs_clear_error(gs_conn* conn);
 
 /** Begin transaction on the given connection.
  *
@@ -156,5 +194,7 @@ int gs_query_get_rows(gs_query* query);
  * @return -1 on error, positive ID on success.
  */
 int gs_query_get_last_id(gs_query* query, const char* seq_name);
+
+G_END_DECLS
 
 #endif

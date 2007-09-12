@@ -47,7 +47,7 @@ static int pgsql_gs_begin(gs_conn* conn)
   res = PQexec(CONN(conn)->pg, "BEGIN");
   if (PQresultStatus(res) != PGRES_COMMAND_OK)
   {
-    conn->error = PQresultErrorMessage(res);
+    gs_set_error(conn, GS_ERR_OTHER, PQresultErrorMessage(res));
     PQclear(res);
     return -1;
   }
@@ -63,7 +63,7 @@ static int pgsql_gs_commit(gs_conn* conn)
   res = PQexec(CONN(conn)->pg, "COMMIT");
   if (PQresultStatus(res) != PGRES_COMMAND_OK)
   {
-    conn->error = PQresultErrorMessage(res);
+    gs_set_error(conn, GS_ERR_OTHER, PQresultErrorMessage(res));
     PQclear(res);
     return -1;
   }
@@ -79,7 +79,7 @@ static int pgsql_gs_rollback(gs_conn* conn)
   res = PQexec(CONN(conn)->pg, "ROLLBACK");
   if (PQresultStatus(res) != PGRES_COMMAND_OK)
   {
-    conn->error = PQresultErrorMessage(res);
+    gs_set_error(conn, GS_ERR_OTHER, PQresultErrorMessage(res));
     PQclear(res);
     return -1;
   }
@@ -155,7 +155,7 @@ static int pgsql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     }
     else
     {
-      query->conn->error = "invalid format string";
+      gs_set_error(query->conn, GS_ERR_OTHER, "Invalid format string.");
       va_end(ap);
       return -1;
     }
@@ -199,7 +199,7 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     }
     else
     {
-      query->conn->error = "invalid format string";
+      gs_set_error(query->conn, GS_ERR_OTHER, "Invalid format string.");
       retval = -1;
       goto err;
     }
@@ -210,7 +210,7 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
   if (PQresultStatus(res) != PGRES_COMMAND_OK
       && PQresultStatus(res) != PGRES_TUPLES_OK)
   {
-    query->conn->error = PQresultErrorMessage(res);
+    gs_set_error(query->conn, GS_ERR_OTHER, PQresultErrorMessage(res));
     retval = -1;
   }
 

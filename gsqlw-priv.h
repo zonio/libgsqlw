@@ -8,8 +8,8 @@ typedef struct _gs_driver gs_driver;
 struct _gs_conn
 {
   char* dsn;
-  char* error;
-  int error_code;
+  int errcode;
+  char* errmsg;
   gs_driver* driver;
   int in_transaction;
 };

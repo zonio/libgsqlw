@@ -101,7 +101,7 @@ static gs_query* sqlite_gs_query_new(gs_conn* conn, const char* sql_string)
   rs = sqlite3_prepare_v2(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
   if (rs != SQLITE_OK)
   {
-    query->base.conn->error = (char*)sqlite3_errmsg(CONN(conn)->handle);
+    gs_set_error(conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(conn)->handle));
     sqlite_gs_query_free((gs_query*)query);
     return NULL;
   }
@@ -158,7 +158,7 @@ static int sqlite_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     }
     else
     {
-      query->conn->error = "invalid format string";
+      gs_set_error(query->conn, GS_ERR_OTHER, "Invalid format string.");
       va_end(ap);
       return -1;
     }
@@ -174,7 +174,7 @@ static int sqlite_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
   }
   else
   {
-    query->conn->error = (char*)sqlite3_errmsg(CONN(query->conn)->handle);
+    gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
 }
@@ -208,7 +208,7 @@ static int sqlite_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     }
     else
     {
-      query->conn->error = "invalid format string";
+      gs_set_error(query->conn, GS_ERR_OTHER, "Invalid format string.");
       return -1;
     }
   }
@@ -221,7 +221,7 @@ static int sqlite_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     QUERY(query)->state = QUERY_STATE_DATA_PENDING;
   else
   {
-    query->conn->error = (char*)sqlite3_errmsg(CONN(query->conn)->handle);
+    gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
 
@@ -239,7 +239,7 @@ static int sqlite_gs_query_get_rows(gs_query* query)
 
   if (sqlite3_reset(stmt) != SQLITE_OK)
   {
-    query->conn->error = (char*)sqlite3_errmsg(CONN(query->conn)->handle);
+    gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
 
@@ -252,14 +252,14 @@ static int sqlite_gs_query_get_rows(gs_query* query)
       count++;
     else
     {
-      query->conn->error = (char*)sqlite3_errmsg(CONN(query->conn)->handle);
+      gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
       return -1;
     }
   }
 
   if (sqlite3_reset(stmt) != SQLITE_OK)
   {
-    query->conn->error = (char*)sqlite3_errmsg(CONN(query->conn)->handle);
+    gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
 
@@ -270,7 +270,7 @@ static int sqlite_gs_query_get_rows(gs_query* query)
     QUERY(query)->state = QUERY_STATE_COMPLETED;
   else
   {
-    query->conn->error = (char*)sqlite3_errmsg(CONN(query->conn)->handle);
+    gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
 
