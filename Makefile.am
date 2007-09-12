@@ -24,7 +24,7 @@ libgsqlw_la_SOURCES = \
 
 # test code
 
-bin_PROGRAMS = \
+noinst_PROGRAMS = \
   gsqlw-test
 
 gsqlw_test_SOURCES = gsqlw-test.c
