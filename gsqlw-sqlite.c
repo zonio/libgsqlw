@@ -28,22 +28,14 @@ struct _gs_query_sqlite
 #define CONN(c) ((struct _gs_conn_sqlite*)(c))
 #define QUERY(c) ((struct _gs_query_sqlite*)(c))
 
+// dsn is filename
 static gs_conn* sqlite_gs_connect(const char* dsn)
 {
   struct _gs_conn_sqlite* conn;
-  sqlite3* handle;
-  int rs;
-
-  // dsn is filename
-  rs = sqlite3_open(dsn, &handle);
-  if (rs != SQLITE_OK)
-  {
-    sqlite3_close(handle);
-    return NULL;
-  }
 
   conn = g_new0(struct _gs_conn_sqlite, 1);
-  conn->handle = handle;
+  if (sqlite3_open(dsn, &conn->handle) != SQLITE_OK)
+    gs_set_error((gs_conn*)conn, GS_ERR_OTHER, sqlite3_errmsg(conn->handle));
 
   return (gs_conn*)conn;
 }

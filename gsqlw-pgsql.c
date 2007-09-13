@@ -27,24 +27,21 @@ void notices_black_hole(void* arg, const char* message)
 static gs_conn* pgsql_gs_connect(const char* dsn)
 {
   struct _gs_conn_pgsql* conn;
-  PGconn* pg;
   
-  pg = PQconnectdb(dsn);
-  if (PQstatus(pg) == CONNECTION_BAD)
-    return NULL;
-
   conn = g_new0(struct _gs_conn_pgsql, 1);
-  conn->pg = pg;
-
-  PQsetNoticeProcessor(pg, notices_black_hole, NULL);
-  //PQsetErrorVerbosity(pg, PQERRORS_TERSE);
+  conn->pg = PQconnectdb(dsn);
+  if (PQstatus(conn->pg) == CONNECTION_BAD)
+    gs_set_error((gs_conn*)conn, GS_ERR_OTHER, PQerrorMessage(conn->pg));
+  else
+    PQsetNoticeProcessor(conn->pg, notices_black_hole, NULL);
 
   return (gs_conn*)conn;
 }
 
 static void pgsql_gs_disconnect(gs_conn* conn)
 {
-  PQfinish(CONN(conn)->pg);
+  if (CONN(conn)->pg)
+    PQfinish(CONN(conn)->pg);
 }
 
 static int pgsql_gs_begin(gs_conn* conn)

@@ -114,6 +114,12 @@ int main(int ac, char* av[])
   for (i = 0; i < G_N_ELEMENTS(tests); i++)
   {
     c = gs_connect(DSN);
+    if (gs_get_errcode(c) != GS_ERR_NONE)
+    {
+      g_print("ERROR: %s\n", gs_get_errmsg(c));
+      gs_disconnect(c);
+      break;
+    }
     gs_begin(c);
 
     tests[i]();
