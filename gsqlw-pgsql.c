@@ -172,7 +172,7 @@ static int pgsql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
   return 0;
 }
 
-int pgsql_convert_error(const char *sqlstate)
+static int pgsql_convert_error(const char *sqlstate)
 {
   switch (g_ascii_strtoull(sqlstate, NULL, 0))
   {
