@@ -261,7 +261,7 @@ static int pgsql_gs_query_get_rows(gs_query* query)
 
 static int pgsql_gs_query_get_last_id(gs_query* query, const char* seq_name)
 {
-  g_warning("pgsql_gs_query_get_last_id() is not implemented!");
+  gs_set_error(query->conn, GS_ERR_OTHER, "pgsql_gs_query_get_last_id() is not implemented!");
   return -1;
 }
 
