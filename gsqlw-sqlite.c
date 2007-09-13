@@ -10,10 +10,12 @@ struct _gs_conn_sqlite
   sqlite3* handle;
 };
 
-enum {
-  QUERY_STATE_INIT,      // just after creation
-  QUERY_STATE_DATA_PENDING,
-  QUERY_STATE_COMPLETED,
+enum _sqlite_query_state
+{
+  QUERY_STATE_INIT,          // just after sqlite3_prepare
+  QUERY_STATE_ROW_PENDING,   // sqlite3_step was called and row was not retrieved using getv
+  QUERY_STATE_ROW_READ,      // row was retrieved using getv
+  QUERY_STATE_COMPLETED,     // no more rows
 };
 
 struct _gs_query_sqlite
@@ -120,16 +122,37 @@ static void sqlite_gs_query_free(gs_query* query)
 static int sqlite_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
 {
   sqlite3_stmt* stmt = QUERY(query)->stmt;
-  int rs;
-
-  if (stmt == NULL)
-    return -1;
-
-  if (QUERY(query)->state != QUERY_STATE_DATA_PENDING)
-    return 1;
-
   int param_count = fmt != NULL ? strlen(fmt) : 0;
-  int i, col = 0;
+  int i, rs;
+  int col = 0;
+
+  switch (QUERY(query)->state)
+  {
+    case QUERY_STATE_INIT: 
+      gs_set_error(query->conn, GS_ERR_OTHER, "Invalid API use, call gs_query_put() before gs_query_get().");
+      return -1;
+    case QUERY_STATE_COMPLETED:
+      return 1;
+    case QUERY_STATE_ROW_READ:
+      // fetch next row
+      rs = sqlite3_step(stmt);
+      if (rs == SQLITE_ROW)
+        break;
+      else if (rs == SQLITE_DONE)
+      {
+        QUERY(query)->state = QUERY_STATE_COMPLETED;
+        return 1;
+      }
+      else
+      {
+        //XXX: set error based on sqlite state
+        gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
+        return -1;
+      }
+    case QUERY_STATE_ROW_PENDING:
+      QUERY(query)->state = QUERY_STATE_ROW_READ;
+      break;
+  }
 
   for (i = 0; i < param_count; i++)
   {
@@ -164,19 +187,7 @@ static int sqlite_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     }
   }
 
-  rs = sqlite3_step(stmt);
-  if (rs == SQLITE_ROW)
-    return 0;
-  else if (rs == SQLITE_DONE)
-  {
-    QUERY(query)->state = QUERY_STATE_COMPLETED;
-    return 0;
-  }
-  else
-  {
-    gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
-    return -1;
-  }
+  return 0;
 }
 
 static int sqlite_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
@@ -186,25 +197,45 @@ static int sqlite_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
   int i, rs;
   int col = 1;
 
+  if (QUERY(query)->state != QUERY_STATE_INIT)
+  {
+    if (sqlite3_reset(stmt) != SQLITE_OK)
+    {
+      gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
+      return -1;
+    }
+  }
+
   for (i = 0; i < param_count; i++)
   {
+    int is_null = 0;
+
+    if (fmt[i] == '?')
+    {
+      is_null = (int)va_arg(ap, int);
+      if (is_null)
+        sqlite3_bind_null(stmt, col);
+      i++;
+    }
+
     if (fmt[i] == 's')
     {
       char* value = (char*)va_arg(ap, char*);
-      sqlite3_bind_text(stmt, col, value, -1, SQLITE_TRANSIENT);
+      if (!is_null)
+      {
+        if (value == NULL)
+          sqlite3_bind_null(stmt, col);
+        else
+          sqlite3_bind_text(stmt, col, value, -1, SQLITE_TRANSIENT);
+      }
       col++;
     }
     else if (fmt[i] == 'i')
     {
       int value = (int)va_arg(ap, int);
-      sqlite3_bind_int(stmt, col, value);
+      if (!is_null)
+        sqlite3_bind_int(stmt, col, value);
       col++;
-    }
-    else if (fmt[i] == '?')
-    {
-      int is_null = (int)va_arg(ap, int);
-      if (is_null)
-        sqlite3_bind_null(stmt, col);
     }
     else
     {
@@ -213,14 +244,14 @@ static int sqlite_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     }
   }
 
-  rs = sqlite3_reset(stmt);
   rs = sqlite3_step(stmt);
   if (rs == SQLITE_DONE)
     QUERY(query)->state = QUERY_STATE_COMPLETED;
   else if (rs == SQLITE_ROW)
-    QUERY(query)->state = QUERY_STATE_DATA_PENDING;
+    QUERY(query)->state = QUERY_STATE_ROW_PENDING;
   else
   {
+    //XXX: set error based on sqlite state
     gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
@@ -235,7 +266,10 @@ static int sqlite_gs_query_get_rows(gs_query* query)
   sqlite3_stmt* stmt = QUERY(query)->stmt;
 
   if (QUERY(query)->state == QUERY_STATE_INIT)
+  {
+    gs_set_error(query->conn, GS_ERR_OTHER, "Invalid API use, call gs_query_put() before gs_query_get_rows().");
     return -1;
+  }
 
   if (sqlite3_reset(stmt) != SQLITE_OK)
   {
@@ -252,6 +286,7 @@ static int sqlite_gs_query_get_rows(gs_query* query)
       count++;
     else
     {
+      //XXX: set error based on sqlite state
       gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
       return -1;
     }
@@ -265,11 +300,12 @@ static int sqlite_gs_query_get_rows(gs_query* query)
 
   rs = sqlite3_step(stmt);
   if (rs == SQLITE_ROW)
-    QUERY(query)->state = QUERY_STATE_DATA_PENDING;
+    QUERY(query)->state = QUERY_STATE_ROW_PENDING;
   else if (rs == SQLITE_DONE)
     QUERY(query)->state = QUERY_STATE_COMPLETED;
   else
   {
+    //XXX: set error based on sqlite state
     gs_set_error(query->conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(query->conn)->handle));
     return -1;
   }
