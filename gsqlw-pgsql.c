@@ -175,27 +175,30 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
 
   for (i = 0; i < param_count; i++)
   {
+    int is_null = 0;
+
+    if (fmt[i] == '?')
+    {
+      is_null = (int)va_arg(ap, int);
+      i++;
+    }
+
     if (fmt[i] == 's')
     {
       char* value = (char*)va_arg(ap, char*);
-      param_values[col] = value;
+      if (!is_null)
+        param_values[col] = value;
       col++;
     }
     else if (fmt[i] == 'i')
     {
       int value = (int)va_arg(ap, int);
-      param_values[col] = g_strdup_printf("%d", value);
-      free_list[col] = 1;
-      col++;
-    }
-    else if (fmt[i] == '?')
-    {
-      int is_null = (int)va_arg(ap, int);
-      if (is_null)
+      if (!is_null)
       {
-        i++;
-        col++;
+        param_values[col] = g_strdup_printf("%d", value);
+        free_list[col] = 1;
       }
+      col++;
     }
     else
     {
@@ -219,7 +222,7 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
   QUERY(query)->pg_res = res;
   
  err:
-  for (i=0; i<param_count; i++)
+  for (i = 0; i < param_count; i++)
     if (free_list[i])
       g_free(param_values[i]);
   g_free(param_values);
