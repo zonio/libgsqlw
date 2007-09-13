@@ -172,6 +172,19 @@ static int pgsql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
   return 0;
 }
 
+int pgsql_convert_error(const char *sqlstate)
+{
+  switch (g_ascii_strtoull(sqlstate, NULL, 0))
+  {
+    case 23505:
+      return GS_ERR_UNIQUE_VIOLATION;
+    case 23502:
+      return GS_ERR_NOT_NULL_VIOLATION;
+    default:
+      return GS_ERR_OTHER;
+  }
+}
+
 static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
 {
   int param_count = (fmt != NULL) ? strlen(fmt) : 0;
@@ -217,10 +230,10 @@ static int pgsql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
   param_count = col;
 
   res = PQexecParams(CONN(query->conn)->pg, query->sql, param_count, NULL, (const char* const*)param_values, NULL, NULL, 0);
-  if (PQresultStatus(res) != PGRES_COMMAND_OK
-      && PQresultStatus(res) != PGRES_TUPLES_OK)
+  if (PQresultStatus(res) != PGRES_COMMAND_OK && PQresultStatus(res) != PGRES_TUPLES_OK)
   {
-    gs_set_error(query->conn, GS_ERR_OTHER, PQresultErrorMessage(res));
+    int code = pgsql_convert_error(PQresultErrorField(res, PG_DIAG_SQLSTATE));
+    gs_set_error(query->conn, code, PQresultErrorMessage(res));
     retval = -1;
   }
 
