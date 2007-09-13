@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include "gsqlw.h"
 
 //#define DSN "pgsql:dbname=test host=localhost user=postgres password=heslo"
@@ -21,13 +22,13 @@ void test2()
 {
   q = gs_query_new(c, "INSERT INTO test (id, name) VALUES ($1, $2)");
   gs_query_put(q, "is", 1, "test 1");
-  g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
-  gs_query_put(q, "is", 2, "test 2");
-  g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
-  gs_query_put(q, "is", 3, "test 3");
-  g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
+  //g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
+  gs_query_put(q, "?is", TRUE, 2, "test 2");
+  //g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
+  gs_query_put(q, "?is", FALSE, 3, "test 3");
+  //g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
   gs_query_put(q, "is", 4, "test 4''");
-  g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
+  //g_print("last insert ID: %d\n", gs_query_get_last_id(q, NULL));
   gs_query_free(q);
 }
 
@@ -39,16 +40,16 @@ void test3()
   int id_null;
   char* str_val = NULL;
 
-  q = gs_query_new(c, "SELECT id, name FROM test WHERE id = $1");
+  q = gs_query_new(c, "SELECT id, name FROM test WHERE id > $1");
 
   gs_query_put(q, "i", 1);
   while (gs_query_get(q, "is", &id_val, &str_val) == 0)
-    g_print("  getting row: %s %d\n", str_val, id_val);
+    g_print("  getting row: '%s' %d\n", str_val, id_val);
 
-  gs_query_put(q, "i", 2);
+  gs_query_put(q, "i", 3);
   while (gs_query_get(q, "?iS", &id_null, &id_val, &str_val) == 0)
   {
-    g_print("  getting row: %s %d (%s)\n", str_val, id_val, id_null ? "IS NULL" : "IS NOT NULL");
+    g_print("  getting row: '%s' %d (%s)\n", str_val, id_val, id_null ? "IS NULL" : "IS NOT NULL");
     g_free(str_val);
     str_val = NULL;
   }
@@ -68,9 +69,28 @@ void test4()
   gs_query_put(q, "i", 1);
   g_print("rows %d\n", gs_query_get_rows(q));
   while (gs_query_get(q, "is", &id_val, &str_val) == 0)
-    g_print("  getting row: %s %d\n", str_val, id_val);
+    g_print("  getting row: '%s' %d\n", str_val, id_val);
 
   gs_query_free(q);
+}
+
+/** cosntraint violation tests
+ */
+void test5()
+{
+  gs_exec(c, "CREATE TABLE ct (id INT UNIQUE, name TEXT NOT NULL)", NULL);
+  gs_exec(c, "INSERT INTO ct (id, name) VALUES ($1, $2)", "is", 1, NULL);
+  if (gs_get_errcode(c) != GS_ERR_NOT_NULL_VIOLATION)
+    g_print("ASSERT FAILED: should return GS_ERR_NOT_NULL_VIOLATION (%d:%s)\n", gs_get_errcode(c), gs_get_errmsg(c));
+}
+
+void test6()
+{
+  gs_exec(c, "CREATE TABLE ct (id INT UNIQUE, name TEXT NOT NULL)", NULL);
+  gs_exec(c, "INSERT INTO ct (id, name) VALUES ($1, $2)", "is", 1, "text 1");
+  gs_exec(c, "INSERT INTO ct (id, name) VALUES ($1, $2)", "is", 1, "text 2");
+  if (gs_get_errcode(c) != GS_ERR_UNIQUE_VIOLATION)
+    g_print("ASSERT FAILED: should return GS_ERR_UNIQUE_VIOLATION (%d:%s)\n", gs_get_errcode(c), gs_get_errmsg(c));
 }
 
 int main(int ac, char* av[])
@@ -80,11 +100,15 @@ int main(int ac, char* av[])
   if (!g_thread_supported())
     g_thread_init(NULL);
 
+  unlink(".test.db");
+
   void (*tests[])() = {
     test1,
     test2,
     test3,
     test4,
+    test5,
+    test6,
   };
 
   for (i = 0; i < G_N_ELEMENTS(tests); i++)
