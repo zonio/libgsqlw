@@ -20,6 +20,10 @@ struct _gs_query_pgsql
 #define CONN(c) ((struct _gs_conn_pgsql*)(c))
 #define QUERY(c) ((struct _gs_query_pgsql*)(c))
 
+void notices_black_hole(void* arg, const char* message)
+{
+}
+
 static gs_conn* pgsql_gs_connect(const char* dsn)
 {
   struct _gs_conn_pgsql* conn;
@@ -31,6 +35,9 @@ static gs_conn* pgsql_gs_connect(const char* dsn)
 
   conn = g_new0(struct _gs_conn_pgsql, 1);
   conn->pg = pg;
+
+  PQsetNoticeProcessor(pg, notices_black_hole, NULL);
+  //PQsetErrorVerbosity(pg, PQERRORS_TERSE);
 
   return (gs_conn*)conn;
 }
