@@ -62,6 +62,7 @@ void gs_disconnect(gs_conn* conn)
   if (conn == NULL)
     return;
   CONN_DRIVER(conn)->disconnect(conn);
+  gs_clear_error(conn);
   g_free(conn->dsn);
   g_free(conn);
 }
