@@ -34,7 +34,9 @@ static gs_conn* sqlite_gs_connect(const char* dsn)
   struct _gs_conn_sqlite* conn;
 
   conn = g_new0(struct _gs_conn_sqlite, 1);
-  if (sqlite3_open(dsn, &conn->handle) != SQLITE_OK)
+  if (sqlite3_open(dsn, &conn->handle) == SQLITE_OK)
+    sqlite3_busy_timeout(conn->handle, 10000);
+  else
     gs_set_error((gs_conn*)conn, GS_ERR_OTHER, sqlite3_errmsg(conn->handle));
 
   return (gs_conn*)conn;
