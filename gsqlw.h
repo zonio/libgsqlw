@@ -27,7 +27,8 @@ G_BEGIN_DECLS
  * @li sqlite:file_path
  * @li pgsql:dbname=test host=localhost user=postgres password=pass
  *
- * @return gs_conn on success NULL on error.
+ * @return gs_conn object is always returned, user must check for connection
+ * error using gs_get_errcode().
  */
 gs_conn* gs_connect(const char* dsn);
 
