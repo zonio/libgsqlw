@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT([gsqlw], 0.5, [megous@megous.com], gsqlw)
+AC_INIT([glib-sql-wrapper], 0.6, [megous@megous.com], glib-sql-wrapper)
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])
@@ -49,5 +49,5 @@ AC_SUBST(SQLITE_LIBS)
 AC_OUTPUT([
     Makefile
     docs/Makefile
-    gsqlw.pc
+    glib-sql-wrapper.pc
 ])
