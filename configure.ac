@@ -48,5 +48,6 @@ AC_SUBST(SQLITE_LIBS)
 # Output
 AC_OUTPUT([
     Makefile
+    docs/Makefile
     gsqlw.pc
 ])

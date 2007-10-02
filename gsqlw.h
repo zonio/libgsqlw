@@ -3,8 +3,11 @@
 
 #include <glib.h>
 
-/** @file gsqlw Glib based SQL DB C interface wrapper.
+/** @file gsqlw.h Glib based SQL DB C interface wrapper.
  */
+
+/** @addtogroup gsqlw */
+/** @{ */
 
 typedef struct _gs_conn gs_conn;
 typedef struct _gs_query gs_query;
@@ -214,5 +217,7 @@ int gs_query_putv(gs_query* query, const char* fmt, va_list ap);
 int gs_query_getv(gs_query* query, const char* fmt, va_list ap);
 
 G_END_DECLS
+
+/** @} */
 
 #endif

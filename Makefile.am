@@ -1,5 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 
+SUBDIRS = docs
+
 AM_CFLAGS = \
   $(GLIB_CFLAGS) \
   $(PGSQL_CFLAGS)

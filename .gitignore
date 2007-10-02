@@ -28,3 +28,6 @@ TAGS
 /.test.db
 /.vimrc
 /tags
+
+/docs/html
+/gsqlw.pc

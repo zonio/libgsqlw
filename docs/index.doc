@@ -1,0 +1,12 @@
+/* vim:set ft=doxygen: */
+/** @page index Main Page
+
+This is documentation for @b gsqlw.
+
+@section s1 Sample Code
+
+@include gsqlw-test.c
+
+@defgroup gsqlw GSQLW API
+
+*/
