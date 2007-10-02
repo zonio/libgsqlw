@@ -1,3 +1,7 @@
+/*
+ * Written by Ondrej Jirman <megous@megous.com> in 2007.
+ */
+
 #ifndef __GSQLW_PRIV_H__
 #define __GSQLW_PRIV_H__
 

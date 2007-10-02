@@ -1,3 +1,7 @@
+/*
+ * Written by Ondrej Jirman <megous@megous.com> in 2007.
+ */
+
 #ifndef __GSW_H__
 #define __GSW_H__
 

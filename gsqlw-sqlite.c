@@ -1,3 +1,7 @@
+/*
+ * Written by Ondrej Jirman <megous@megous.com> in 2007.
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include <sqlite3.h>

@@ -1,3 +1,7 @@
+/*
+ * Written by Ondrej Jirman <megous@megous.com> in 2007.
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include "gsqlw.h"
