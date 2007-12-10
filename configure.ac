@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT([glib-sql-wrapper], 0.7.0, [megous@megous.com], glib-sql-wrapper)
+AC_INIT([glib-sql-wrapper], 0.7.1, [megous@megous.com], glib-sql-wrapper)
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])
