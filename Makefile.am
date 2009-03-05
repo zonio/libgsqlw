@@ -32,9 +32,9 @@ libgsqlw_la_SOURCES = \
 # pkgconfig
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = glib-sql-wrapper.pc
+pkgconfig_DATA = libgsqlw.pc
 
-EXTRA_DIST = glib-sql-wrapper.pc.in
+EXTRA_DIST = libgsqlw.pc.in
 
 # test code
 

@@ -49,5 +49,5 @@ AC_SUBST(SQLITE_LIBS)
 AC_OUTPUT([
     Makefile
     docs/Makefile
-    glib-sql-wrapper.pc
+    libgsqlw.pc
 ])
