@@ -8,7 +8,7 @@ If you have any questions, patches, new backend implementations, etc.
 send them to glib-sql-wrapper@zhost.net.
 
 
-!!! IMPORTANT !!!
+!! IMPORTANT !!
 
 API Assumptions:
 - you must always call query_put after query_new
