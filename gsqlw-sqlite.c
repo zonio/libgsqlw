@@ -98,7 +98,11 @@ static gs_query* sqlite_gs_query_new(gs_conn* conn, const char* sql_string)
   query->base.sql = _sqlite_fixup_sql(sql_string);
   query->state = QUERY_STATE_INIT;
 
-  rs = sqlite3_prepare_v2(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
+#ifndef HAVE_SQLITE_V2_METHODS
+  rs = sqlite3_prepare(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
+#else
+  rs = sqlite3_prepare(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
+#endif
   if (rs != SQLITE_OK)
   {
     gs_set_error(conn, GS_ERR_OTHER, sqlite3_errmsg(CONN(conn)->handle));
@@ -175,7 +179,8 @@ static int sqlite_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     else if (fmt[i] == '?') // null flag
     {
       int* int_ptr = (int*)va_arg(ap, int*);
-      *int_ptr = sqlite3_value_type(sqlite3_column_value(stmt, col)) == SQLITE_NULL;
+      //*int_ptr = sqlite3_value_type(sqlite3_column_value(stmt, col)) == SQLITE_NULL; //original, non thread-save usage
+      *int_ptr = sqlite3_column_type(stmt, col) == SQLITE_NULL;
     }
     else
     {

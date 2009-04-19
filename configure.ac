@@ -30,7 +30,6 @@ for i in /usr/local/pgsql/bin /usr/local/bin /usr/bin "" ; do
 done
 
 if test -n "$PG_CONFIG"; then
-    AC_MSG_RESULT([$PG_CONFIG])
     PGSQL_INCLUDE=`$PG_CONFIG --includedir`
     PGSQL_LIBDIR=`$PG_CONFIG --libdir`
     AC_DEFINE(HAVE_PG_CONFIG_H,1,[Whether to have pg_config.h])
@@ -44,6 +43,11 @@ fi
 
 SQLITE_LIBS="-lsqlite3"
 AC_SUBST(SQLITE_LIBS)
+
+#
+AS_IF([pkg-config 'sqlite3 >= 3.3.6'],
+    [AC_DEFINE(HAVE_SQLITE_V2_METHODS, 1, [whether sqlite supports new API])
+])
 
 # Output
 AC_OUTPUT([
