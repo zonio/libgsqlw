@@ -101,7 +101,7 @@ static gs_query* sqlite_gs_query_new(gs_conn* conn, const char* sql_string)
 #ifndef HAVE_SQLITE_V2_METHODS
   rs = sqlite3_prepare(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
 #else
-  rs = sqlite3_prepare(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
+  rs = sqlite3_prepare_v2(CONN(conn)->handle, query->base.sql, -1, &query->stmt, NULL);
 #endif
   if (rs != SQLITE_OK)
   {
