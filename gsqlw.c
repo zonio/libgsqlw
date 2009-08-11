@@ -73,7 +73,7 @@ void gs_disconnect(gs_conn* conn)
 
 const char* gs_get_backend(gs_conn* conn)
 {
-  if (conn == NULL)
+  if (conn == NULL || conn->driver == NULL || conn->driver->name == NULL)
     return "";
   return conn->driver->name;
 }
