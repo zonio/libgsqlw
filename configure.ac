@@ -42,8 +42,13 @@ if test -n "$PG_CONFIG"; then
     AC_CHECK_LIB(pq, PQprepare,AC_DEFINE(HAVE_PQPREPARE,1,[prepared statements]))
 fi
 
-SQLITE_LIBS="-lsqlite3"
+
+PKG_CHECK_MODULES(SQLITE, sqlite3 ) 
+AC_SUBST(SQLITE_CFLAGS)
 AC_SUBST(SQLITE_LIBS)
+
+#SQLITE_LIBS="-lsqlite3"
+#AC_SUBST(SQLITE_LIBS)
 
 #
 AS_IF([pkg-config 'sqlite3 >= 3.3.6'],
