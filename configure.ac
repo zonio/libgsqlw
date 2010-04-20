@@ -40,12 +40,17 @@ if test -n "$PG_CONFIG"; then
     AC_SUBST(PGSQL_LIBS)
     AC_CHECK_LIB(pq, PQexecParams,AC_DEFINE(HAVE_PQEXECPARAMS,1,[PostgreSQL 7.4 or later]))
     AC_CHECK_LIB(pq, PQprepare,AC_DEFINE(HAVE_PQPREPARE,1,[prepared statements]))
+else
+		AC_MSG_ERROR([No postgres devel files found, install libpq-dev/libpq-devel])
 fi
 
-SQLITE_LIBS="-lsqlite3"
-AC_SUBST(SQLITE_LIBS)
 
-#
+# Sqlite
+
+PKG_CHECK_MODULES(SQLITE3, [sqlite3])
+AC_SUBST(SQLITE3_CFLAGS)
+AC_SUBST(SQLITE3_LIBS)
+
 AS_IF([pkg-config 'sqlite3 >= 3.3.6'],
     [AC_DEFINE(HAVE_SQLITE_V2_METHODS, 1, [whether sqlite supports new API])
 ])
