@@ -1,0 +1,18 @@
+ABOUT
+-----
+Libgsqlw is simple glib based SQL database API wrapper with 
+minimalistic, user extensible API intended for hand written code.
+
+!! IMPORTANT !!
+API Assumptions:
+- you must always call query_put after query_new
+- you may call query_get_rows only immediately after query_put
+
+MORE INFORMATION
+----------------
+To get more information visit wiki at http://zonio.net/wiki
+
+CONTRIBUTE
+----------
+If you have any bug fixes, patches, new backend implementations etc. 
+please send them to developers@zonio.net.
