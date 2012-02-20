@@ -21,8 +21,9 @@
 #include <unistd.h>
 #include "gsqlw.h"
 
+#define DSN "mysql:test;localhost;mysql;heslo"
 //#define DSN "pgsql:dbname=test host=localhost user=postgres password=heslo"
-#define DSN "sqlite:.test.db"
+//#define DSN "sqlite:.test.db"
 
 gs_query* q;
 gs_conn* c;

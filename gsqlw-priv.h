@@ -62,5 +62,6 @@ struct _gs_driver
 
 extern gs_driver sqlite_driver;
 extern gs_driver pgsql_driver;
+extern gs_driver mysql_driver;
 
 #endif

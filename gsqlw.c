@@ -25,6 +25,7 @@
 static gs_driver* drivers[] = {
   &sqlite_driver,
   &pgsql_driver,
+  &mysql_driver,
 };
 
 #define CONN_DRIVER(c) \
@@ -96,7 +97,7 @@ const char* gs_get_backend(gs_conn* conn)
 const char* gs_get_errmsg(gs_conn* conn)
 {
   if (conn == NULL)
-    return "Connection obejct is NULL.";
+    return "Connection object is NULL.";
   return conn->errmsg;
 }
 
