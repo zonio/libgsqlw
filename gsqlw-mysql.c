@@ -50,9 +50,9 @@ struct _gs_query_mysql
     my_bool *my_null;
     my_bool *error;
     unsigned long *length;
-    int **val_is_null;
-    int *mem_aloc;
-    char **str;
+    int **val_is_null; /* which columns contain NULL values */
+    int *mem_aloc;     /* which columns need memory allocation */
+    char **str;        /* memory pointers to string values */
 };
 
 #define CONN(c) ((struct _gs_conn_mysql*)(c))
@@ -73,9 +73,11 @@ static gs_conn* mysql_gs_connect(const char *dsn)
     if (conn->handle == NULL)
     {
         gs_set_error((gs_conn*)conn, GS_ERR_OTHER, "mysql_init error");
+        g_free(conn);
+        return NULL;
     }
     char **dsn_chunks =
- g_strsplit(dsn, ";", 5);
+    g_strsplit(dsn, ";", 5);
     if (dsn_chunks == NULL)
     {
         gs_set_error((gs_conn*)conn, GS_ERR_OTHER, "Wrong DSN format");
@@ -91,6 +93,8 @@ static gs_conn* mysql_gs_connect(const char *dsn)
     if (conn->handle == NULL)
     {
         gs_set_error((gs_conn*)conn, GS_ERR_OTHER, mysql_error(conn->handle));
+        g_free(conn);
+        return NULL;
     }
     mysql_autocommit(conn->handle, 0);
 
@@ -127,6 +131,10 @@ static int mysql_gs_rollback(gs_conn* conn)
     return gs_exec(conn, "ROLLBACK", NULL);
 }
 
+/*
+ * Converts SQL to mysql prepared statement format.
+ * Variables in query ($1, $2, ...) replaces with '?'.
+ */
 char* _mysql_fixup_sql(const char* str)
 {
     char* tmp = g_new0(char, strlen(str));
@@ -199,6 +207,7 @@ static void mysql_gs_query_free(gs_query* query)
 
 static int mysql_gs_query_get_rows(gs_query* query)
 {
+    /* casting from my_ulonglong to int, problem with greater values */
     return (int)QUERY(query)->row_no;
 }
 
@@ -287,6 +296,9 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     return 0;
 }
 
+/*
+ * Binds variables with columns.
+ */
 static int _mysql_prepare_stmt_vars(gs_query* query, const char* fmt, va_list ap, int col_count)
 {
     MYSQL_STMT* stmt = QUERY(query)->stmt;
@@ -326,7 +338,7 @@ static int _mysql_prepare_stmt_vars(gs_query* query, const char* fmt, va_list ap
             QUERY(query)->mem_aloc[col] = 1;
             col++;
         }
-        else if (fmt[i] == '?' && i<param_count && fmt[i+1] == 'i') // null flag
+        else if (fmt[i] == '?' && i<param_count-1 && fmt[i+1] == 'i')
         {
             QUERY(query)->val_is_null[col] = (int*)va_arg(ap, int*);
         }
@@ -366,6 +378,11 @@ static int _mysql_prepare_stmt_vars(gs_query* query, const char* fmt, va_list ap
     return 0;
 }
 
+/*
+ * Cleans information about which columns were NULL and allocates
+ * new memory for string columns. Must be called before
+ * each call of mysql_stmt_fetch().
+ */
 static int _mysql_stmt_fetch_prepare(gs_query *query, int col_count)
 {
     int i;
@@ -484,11 +501,13 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
             case 1048: /* Column '%s' cannot be null */
             {
                 gs_set_error(query->conn, GS_ERR_NOT_NULL_VIOLATION, mysql_stmt_error(stmt));
+                break;
             }
             case 1061: /* Duplicate key name '%s' */
             case 1062: /* Duplicate entry '%s' for key %d */
             {
                 gs_set_error(query->conn, GS_ERR_UNIQUE_VIOLATION, mysql_stmt_error(stmt));
+                break;
             }
             default:
             {
@@ -509,6 +528,10 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
 
 static int mysql_gs_query_get_last_id(gs_query* query, const char* seq_name)
 {
+    /*
+     * Can be called after at least one call of mysql_gs_query_getv
+     * else returns undefined value.
+     */
     my_ulonglong id = mysql_insert_id(CONN(query->conn)->handle);
     return (int)id;
 }
