@@ -162,7 +162,7 @@ int gs_finish(gs_conn* conn);
  * @return -1 on error, 0 on success.
  *
  * Example:
- * gs_exec("INSERT INTO t(v1, v2) VALUES($1, $2)", "is", 1, "tes't");
+ * gs_exec("INSERT INTO t(v1, v2) VALUES($1, $2)", "is", 1, "test");
  */
 int gs_exec(gs_conn* conn, const char* sql_string, const char* fmt, ...);
 
@@ -230,7 +230,7 @@ int gs_query_get_rows(gs_query* query);
  */
 int gs_query_get_last_id(gs_query* query, const char* seq_name);
 
-/* for advnaced users :-) */
+/* for advanced users :-) */
 
 int gs_query_putv(gs_query* query, const char* fmt, va_list ap);
 int gs_query_getv(gs_query* query, const char* fmt, va_list ap);

@@ -59,6 +59,20 @@ AS_IF([pkg-config 'sqlite3 >= 3.3.6'],
     [AC_DEFINE(HAVE_SQLITE_V2_METHODS, 1, [whether sqlite supports new API])
 ])
 
+# MySQL
+AC_ARG_WITH([mysql-include-path],
+  [AS_HELP_STRING([--with-mysql-include-path],
+    [location of the MySQL headers, defaults to /usr/include/mysql])],
+  [MYSQL_CFLAGS="-I$withval"],
+  [MYSQL_CFLAGS='-I/usr/include/mysql'])
+AC_SUBST([MYSQL_CFLAGS])
+
+AC_ARG_WITH([mysql-lib-path],
+  [AS_HELP_STRING([--with-mysql-lib-path], [location of the MySQL libraries])],
+  [MYSQL_LIBS="-L$withval -lmysqlclient"],
+  [MYSQL_LIBS='-lmysqlclient'])
+AC_SUBST([MYSQL_LIBS])
+
 # Output
 AC_OUTPUT([
     Makefile

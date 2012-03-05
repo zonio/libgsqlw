@@ -4,7 +4,8 @@ SUBDIRS = docs
 
 AM_CFLAGS = \
   $(GLIB_CFLAGS) \
-  $(PGSQL_CFLAGS)
+  $(PGSQL_CFLAGS) \
+  $(MYSQL_CFLAGS)
 
 # library
 
@@ -17,7 +18,8 @@ lib_LTLIBRARIES = \
 libgsqlw_la_LIBADD = \
   $(GLIB_LIBS) \
   $(PGSQL_LIBS) \
-  $(SQLITE_LIBS)
+  $(SQLITE_LIBS) \
+  $(MYSQL_LIBS)
 
 libgsqlw_la_LDFLAGS = \
   -version-info 0:0:0 -no-undefined -z now
@@ -27,7 +29,8 @@ libgsqlw_la_SOURCES = \
   gsqlw.c \
   gsqlw-priv.h \
   gsqlw-pgsql.c \
-  gsqlw-sqlite.c
+  gsqlw-sqlite.c \
+  gsqlw-mysql.c
 
 # pkgconfig
 
