@@ -51,6 +51,10 @@ PKG_CHECK_MODULES(SQLITE3, [sqlite3])
 SQLITE_LIBS="-lsqlite3"
 AC_SUBST(SQLITE_LIBS)
 
+PKG_CHECK_MODULES(SQLITE, sqlite3 ) 
+AC_SUBST(SQLITE_CFLAGS)
+AC_SUBST(SQLITE_LIBS)
+
 AS_IF([pkg-config 'sqlite3 >= 3.3.6'],
     [AC_DEFINE(HAVE_SQLITE_V2_METHODS, 1, [whether sqlite supports new API])
 ])
