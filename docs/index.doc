@@ -1,12 +1,20 @@
-/* vim:set ft=doxygen: */
-/** @page index Main Page
+/** @page index Libgsqlw
 
-This is documentation for @b gsqlw.
+This is a documentation for @b libgsqlw: glib sql wrapper.
+Libgsqlw is a wrapper for different databases. Currently supports PostgreSQL, SQLite and MySQL.
+
+@section howto HOWTO
+
+To start using gsqlw first function you must call is @ref gs_connect(const char *dsn) 
+where dsn format varies depending on desired database engine.
+@li PostgreSQL - "pgsql:dbname=test host=localhost user=postgres password=pass"
+@li SQLite - "sqlite:.test.db"
+@li MySQL - "mysql:servername;username;password;dbname;2048", last parameter is max length of string values in database
+
 
 @section s1 Sample Code
 
 @include gsqlw-test.c
 
-@defgroup gsqlw GSQLW API
-
 */
+
