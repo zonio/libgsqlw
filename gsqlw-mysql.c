@@ -23,7 +23,6 @@
 
 #include "gsqlw-priv.h"
 
-
 struct _gs_conn_mysql
 {
     gs_conn base;
@@ -63,6 +62,85 @@ static void _mysql_free_stmt_vars(gs_query *query);
 static void mysql_gs_query_free(gs_query* query);
 static int _mysql_stmt_fetch_prepare(gs_query *query, int col_count);
 
+/*
+ * Parse DSN from key-value format to array of values
+ * in order used by mysql_real_connect(..) function.
+ */
+static char** _mysql_parse_dsn(const char *dsn)
+{
+    /* default values initialization */
+    char *host = g_strdup("localhost");
+    char *port = g_strdup("0");
+    char *dbname = g_strdup("mysql");
+    char *user = g_strdup("mysql");
+    char *password = g_strdup("mysql");
+    char *textlen = g_strdup("1024");
+    
+    char **keyvals = g_strsplit(dsn, " ", -1);
+
+    int i;
+    for (i = 0; keyvals[i]; i++)
+    {
+        char *valptr = strchr(keyvals[i], '=');
+        int keylen = valptr - keyvals[i];
+        
+        if (strncmp(keyvals[i], "host", keylen) ==  0)
+        {
+            g_free(host);
+            host = g_strdup(keyvals[i]+keylen+1);
+            continue;
+        }
+        if (strncmp(keyvals[i], "port", keylen) ==  0)
+        {
+            g_free(port);
+            port = g_strdup((keyvals[i])+keylen+1);
+            continue;
+        }
+        if (strncmp(keyvals[i], "dbname", keylen) ==  0)
+        {
+            g_free(dbname);
+            dbname = g_strdup((keyvals[i])+keylen+1);
+            continue;
+        }
+        if (strncmp(keyvals[i], "user", keylen) ==  0)
+        {
+            g_free(user);
+            user = g_strdup((keyvals[i])+keylen+1);
+            continue;
+        }
+        if (strncmp(keyvals[i], "password", keylen) ==  0)
+        {
+            g_free(password);
+            password = g_strdup((keyvals[i])+keylen+1);
+            continue;
+        }
+        if (strncmp(keyvals[i], "textlen", keylen) ==  0)
+        {
+            g_free(textlen);
+            textlen = g_strdup((keyvals[i])+keylen+1);
+            continue;
+        }
+        
+        /* unknown key or wrong dsn format */
+        g_free(host);
+        g_free(user);
+        g_free(password);
+        g_free(dbname);
+        g_free(port);
+        g_free(textlen);
+        return NULL;
+    }
+    
+    char **dsn_chunks = g_new0(char *, 7);
+    dsn_chunks[0] = host;
+    dsn_chunks[1] = user;
+    dsn_chunks[2] = password;
+    dsn_chunks[3] = dbname;
+    dsn_chunks[4] = port;
+    dsn_chunks[5] = textlen;
+    
+    return dsn_chunks;
+}
 
 static gs_conn* mysql_gs_connect(const char *dsn)
 {
@@ -76,19 +154,20 @@ static gs_conn* mysql_gs_connect(const char *dsn)
         g_free(conn);
         return NULL;
     }
-    char **dsn_chunks =
-    g_strsplit(dsn, ";", 5);
+    
+    char **dsn_chunks = _mysql_parse_dsn(dsn);
     if (dsn_chunks == NULL)
     {
         gs_set_error((gs_conn*)conn, GS_ERR_OTHER, "Wrong DSN format");
         g_free(conn);
         return NULL;
     }
-    //dsn format: "servername;username;password;dbname;max_col_length"
+
     conn->handle = mysql_real_connect(conn->handle, dsn_chunks[0],
                                       dsn_chunks[1], dsn_chunks[2],
-                                      dsn_chunks[3], 0, NULL, 0);
-    conn->max_col_len = atoi(dsn_chunks[4]);
+                                      dsn_chunks[3], atoi(dsn_chunks[4]),
+                                      NULL, 0);
+    conn->max_col_len = atoi(dsn_chunks[5]);
     g_strfreev(dsn_chunks);
     if (conn->handle == NULL)
     {
@@ -281,7 +360,7 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
         }
         case MYSQL_DATA_TRUNCATED:
         {
-            gs_set_error(query->conn, GS_ERR_OTHER, "mysql error: buffer size is small\nYou probably want to increase buffer size (DSN last  parameter)");
+            gs_set_error(query->conn, GS_ERR_OTHER, "mysql error: buffer size is small. You probably want to increase buffer size (DSN parameter textlen).");
             _mysql_free_stmt_vars(query);
             return -1;
         }
