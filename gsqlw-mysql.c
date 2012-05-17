@@ -348,12 +348,6 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
             }
             break;
         }
-        case 1: /* error */
-        {
-            gs_set_error(query->conn, GS_ERR_OTHER, mysql_stmt_error(stmt));
-            _mysql_free_stmt_vars(query);
-            return -1;
-        }
         case MYSQL_NO_DATA: /* No more rows/data exists */
         {
             QUERY(query)->state = QUERY_STATE_COMPLETED;
@@ -366,7 +360,7 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
             _mysql_free_stmt_vars(query);
             return -1;
         }
-        default:
+        default: /* error */
         {
             gs_set_error(query->conn, GS_ERR_OTHER, mysql_stmt_error(stmt));
             _mysql_free_stmt_vars(query);
