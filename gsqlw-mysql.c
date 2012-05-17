@@ -258,14 +258,12 @@ static gs_query* mysql_gs_query_new(gs_conn* conn, const char* sql_string)
     {
         gs_set_error(conn, GS_ERR_OTHER, "mysql_stmt_init() error: out of memory");
         mysql_gs_query_free((gs_query*)query);
-        g_free(query);
         return NULL;
     }
     if (mysql_stmt_prepare(query->stmt, query->base.sql, strlen(query->base.sql)) != 0)
     {
         gs_set_error(conn, GS_ERR_OTHER, mysql_stmt_error(query->stmt));
         mysql_gs_query_free((gs_query*)query);
-        g_free(query);
         return NULL;
     }
     query->state = QUERY_STATE_INIT;
