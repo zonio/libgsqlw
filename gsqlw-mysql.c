@@ -586,6 +586,7 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
                 gs_set_error(query->conn, GS_ERR_NOT_NULL_VIOLATION, mysql_stmt_error(stmt));
                 break;
             }
+            case 1050: /* table exists */
             case 1061: /* Duplicate key name '%s' */
             case 1062: /* Duplicate entry '%s' for key %d */
             {
