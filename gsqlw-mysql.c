@@ -128,6 +128,7 @@ static char** _mysql_parse_dsn(const char *dsn)
         g_free(dbname);
         g_free(port);
         g_free(textlen);
+        g_strfreev(keyvals);
         return NULL;
     }
     
@@ -138,6 +139,7 @@ static char** _mysql_parse_dsn(const char *dsn)
     dsn_chunks[3] = dbname;
     dsn_chunks[4] = port;
     dsn_chunks[5] = textlen;
+    g_strfreev(keyvals);
     
     return dsn_chunks;
 }
@@ -216,7 +218,7 @@ static int mysql_gs_rollback(gs_conn* conn)
  */
 char* _mysql_fixup_sql(const char* str)
 {
-    char* tmp = g_new0(char, strlen(str));
+    char* tmp = g_new0(char, strlen(str)+1); /* +1 for \0 character */
     gboolean in_string = FALSE;
     guint i, j;
     
@@ -256,12 +258,14 @@ static gs_query* mysql_gs_query_new(gs_conn* conn, const char* sql_string)
     {
         gs_set_error(conn, GS_ERR_OTHER, "mysql_stmt_init() error: out of memory");
         mysql_gs_query_free((gs_query*)query);
+        g_free(query);
         return NULL;
     }
     if (mysql_stmt_prepare(query->stmt, query->base.sql, strlen(query->base.sql)) != 0)
     {
         gs_set_error(conn, GS_ERR_OTHER, mysql_stmt_error(query->stmt));
         mysql_gs_query_free((gs_query*)query);
+        g_free(query);
         return NULL;
     }
     query->state = QUERY_STATE_INIT;
@@ -354,8 +358,8 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
         }
         case MYSQL_NO_DATA: /* No more rows/data exists */
         {
-            _mysql_free_stmt_vars(query);
             QUERY(query)->state = QUERY_STATE_COMPLETED;
+            _mysql_free_stmt_vars(query);
             return 1;
         }
         case MYSQL_DATA_TRUNCATED:
@@ -518,7 +522,7 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
         int is_null = 0;
         
         if (fmt[i] == '?')
-        {            
+        {
             is_null = (int)va_arg(ap, int);
             if (is_null)
             {
