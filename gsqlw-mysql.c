@@ -222,25 +222,22 @@ char* _mysql_fixup_sql(const char* str)
     gboolean in_string = FALSE;
     guint i, j;
     
-    for (i = 0, j = 0; i < strlen(str); i++)
+    for (i = 0, j = 0; i < strlen(str)-1; i++)
     {
-        if (! g_ascii_isdigit(str[i]))
+        if (str[i] == '$' && g_ascii_isdigit(str[i+1]))
         {
-            tmp[j] = str[i];
-            j++;
+            /* replace $# with ? */
+            tmp[j] = '?';
+            i++; /* to skip number after dollar sign */
         }
+        else
+        {
+                tmp[j] = str[i];
+        }
+        j++;
     }
-    
-    if (tmp == NULL)
-        return NULL;
-    
-    for (i = 0; i < strlen(tmp); i++)
-    {
-        if (tmp[i] == '\'')
-            in_string = !in_string;
-        if (!in_string && tmp[i] == '$')
-            tmp[i] = '?';
-    }
+    if (i < strlen(str))
+        tmp[j] = str[i];
     
     return tmp;
 }
@@ -262,6 +259,8 @@ static gs_query* mysql_gs_query_new(gs_conn* conn, const char* sql_string)
     }
     if (mysql_stmt_prepare(query->stmt, query->base.sql, strlen(query->base.sql)) != 0)
     {
+        //char *err_test = g_strjoin(NULL, mysql_stmt_error(query->stmt), " SQL: ", "\"", query->base.sql, "\"", NULL);
+        //gs_set_error(conn, GS_ERR_OTHER, err_test);
         gs_set_error(conn, GS_ERR_OTHER, mysql_stmt_error(query->stmt));
         mysql_gs_query_free((gs_query*)query);
         return NULL;
