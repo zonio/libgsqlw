@@ -228,7 +228,7 @@ char* _mysql_fixup_sql(const char* str)
         {
             /* replace $# with ? */
             tmp[j] = '?';
-            i++; /* to skip number after dollar sign */
+            while (g_ascii_isdigit(str[i+1])) i++; /* to skip numbers after dollar sign */
         }
         else
         {
