@@ -113,6 +113,13 @@ void test6()
     g_print("ASSERT FAILED: should return GS_ERR_UNIQUE_VIOLATION (%d:%s)\n", gs_get_errcode(c), gs_get_errmsg(c));
 }
 
+void test7()
+{
+    gs_exec(c, "CREATE TABLE test2 (id INT UNIQUE, name1 TEXT NOT NULL, name2 TEXT NOT NULL)", NULL);
+    gs_exec(c, "INSERT INTO test2 (id, name1, name2) VALUES ($1, $2, $2)", "is", 1, "hello");
+    gs_exec(c, "INSERT INTO test2 (id, name1, name2) VALUES ($1, $2, $2)", "is", 2, "hello again");
+}
+
 int main(int ac, char* av[])
 {
   guint i;
@@ -129,6 +136,7 @@ int main(int ac, char* av[])
     test4,
     test5,
     test6,
+    test7,
   };
 
   for (i = 0; i < G_N_ELEMENTS(tests); i++)
