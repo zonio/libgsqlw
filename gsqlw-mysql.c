@@ -52,6 +52,7 @@ struct _gs_query_mysql
     int **val_is_null; /* which columns contain NULL values */
     int *mem_aloc;     /* which columns need memory allocation */
     char **str;        /* memory pointers to string values */
+    int* idx;          /* indices of parameteters in sql string */
 };
 
 #define CONN(c) ((struct _gs_conn_mysql*)(c))
@@ -219,7 +220,6 @@ static int mysql_gs_rollback(gs_conn* conn)
 char* _mysql_fixup_sql(const char* str)
 {
     char* tmp = g_new0(char, strlen(str)+1); /* +1 for \0 character */
-    gboolean in_string = FALSE;
     guint i, j;
     
     for (i = 0, j = 0; i < strlen(str)-1; i++)
@@ -242,6 +242,36 @@ char* _mysql_fixup_sql(const char* str)
     return tmp;
 }
 
+/*
+ * Creates array if ints containg params indices (number after $)
+ * in order they appear in sql string. This is necessary because mysql
+ * doesn't support indices in sql but libgsqlw does.
+ */
+static int* _params_indices(const char* str)
+{
+    int params_cnt = 0;
+    size_t i;
+    for (i = 0; i < strlen(str); i++)
+        if (str[i] == '$') params_cnt++;
+    int* ints = g_new(int, params_cnt+1);
+    ints[params_cnt] = '\0';
+
+    int j = 0;
+    for (i = 0; i < strlen(str); i++)
+    {
+        if (str[i] == '$' && g_ascii_isdigit(str[i+1]))
+        {
+            char number[4];
+            memset(number, 0, 4);
+            int k = 0;
+            while (g_ascii_isdigit(str[i+1+k]))
+                number[k++] = str[i+1+k];
+            ints[j++] = atoi(number);
+        }
+    }
+    return ints;
+}
+
 static gs_query* mysql_gs_query_new(gs_conn* conn, const char* sql_string)
 {
     struct _gs_query_mysql* query;
@@ -249,13 +279,17 @@ static gs_query* mysql_gs_query_new(gs_conn* conn, const char* sql_string)
     query = g_new0(struct _gs_query_mysql, 1);
     query->base.conn = conn;
     query->base.sql = _mysql_fixup_sql(sql_string);
+    query->idx = _params_indices(sql_string);
     
-    query->stmt = mysql_stmt_init(CONN(conn)->handle);
     if (query->stmt == NULL)
     {
-        gs_set_error(conn, GS_ERR_OTHER, "mysql_stmt_init() error: out of memory");
-        mysql_gs_query_free((gs_query*)query);
-        return NULL;
+        query->stmt = mysql_stmt_init(CONN(conn)->handle);
+        if (query->stmt == NULL)
+        {
+            gs_set_error(conn, GS_ERR_OTHER, "mysql_stmt_init() error: out of memory");
+            mysql_gs_query_free((gs_query*)query);
+            return NULL;
+        }
     }
     if (mysql_stmt_prepare(query->stmt, query->base.sql, strlen(query->base.sql)) != 0)
     {
@@ -276,6 +310,7 @@ static void mysql_gs_query_free(gs_query* query)
     {
         mysql_stmt_close(QUERY(query)->stmt);
         QUERY(query)->stmt = NULL;
+        //g_free(QUERY(query)->idx);
     }
     if (QUERY(query)->bind != NULL)
     {
@@ -283,6 +318,7 @@ static void mysql_gs_query_free(gs_query* query)
     }
     g_free(query->sql);
     g_free(query);
+    query = NULL;
 }
 
 static int mysql_gs_query_get_rows(gs_query* query)
@@ -498,6 +534,22 @@ static void _mysql_free_stmt_vars(gs_query *query)
     QUERY(query)->mem_aloc = NULL;
 }
 
+/*
+ * Returns first occur of parameter with given index or -1
+ * when it's used for first time.
+ */
+static int _param_used(gs_query* query, int idx)
+{
+    int* ints = QUERY(query)->idx;
+    int i;
+    for (i = 0; i < idx; i++)
+    {
+        if (ints[i] == ints[idx])
+            return i;
+    }
+    return -1;
+}
+
 static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
 {
     MYSQL_STMT* stmt = QUERY(query)->stmt;
@@ -508,8 +560,18 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     MYSQL_BIND *bind = g_new0(MYSQL_BIND, col_count);
     long unsigned *lengths = g_new0(long unsigned, col_count);
     
-    for (i = 0, j = 0; i < param_count; i++, j++)
+    for (i = 0, j = 0; i < param_count || j < col_count; i++, j++)
     {
+        /* Was the same parameter already used? */
+        int idx = _param_used(query, j);
+        if (idx != -1)
+        {
+            memcpy(bind+j, bind+idx, sizeof(MYSQL_BIND));
+            i--; /* We don't want shift pointer in fmt string. */
+            continue;
+        }
+        
+        
         int is_null = 0;
         
         if (fmt[i] == '?')
