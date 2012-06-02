@@ -32,10 +32,10 @@ struct _gs_conn_mysql
 
 enum _sqlite_query_state
 {
-    QUERY_STATE_INIT,
-    QUERY_STATE_ROW_PENDING,
-    QUERY_STATE_ROW_READ,
-    QUERY_STATE_COMPLETED,
+    QUERY_STATE_INIT,       /* just after mysql_gs_query_new is called */
+    QUERY_STATE_ROW_PENDING,/* putv was called but getv not,  variables aren't binded */
+    QUERY_STATE_ROW_READ,   /* getv was called, variables are binded with collumns */
+    QUERY_STATE_COMPLETED,  /* all received rows proccesed */
 };
 
 struct _gs_query_mysql
@@ -53,6 +53,7 @@ struct _gs_query_mysql
     int *mem_aloc;     /* which columns need memory allocation */
     char **str;        /* memory pointers to string values */
     int* idx;          /* indices of parameteters in sql string */
+    int params_cnt;    /* count of utouput paramters */
 };
 
 #define CONN(c) ((struct _gs_conn_mysql*)(c))
@@ -217,7 +218,7 @@ static int mysql_gs_rollback(gs_conn* conn)
  * Converts SQL to mysql prepared statement format.
  * Variables in query ($1, $2, ...) replaces with '?'.
  */
-char* _mysql_fixup_sql(const char* str)
+static char* _mysql_fixup_sql(const char* str)
 {
     char* tmp = g_new0(char, strlen(str)+1); /* +1 for \0 character */
     guint i, j;
@@ -231,9 +232,7 @@ char* _mysql_fixup_sql(const char* str)
             while (g_ascii_isdigit(str[i+1])) i++; /* to skip numbers after dollar sign */
         }
         else
-        {
-                tmp[j] = str[i];
-        }
+            tmp[j] = str[i];
         j++;
     }
     if (i < strlen(str))
@@ -265,7 +264,10 @@ static int* _params_indices(const char* str)
             memset(number, 0, 4);
             int k = 0;
             while (g_ascii_isdigit(str[i+1+k]))
-                number[k++] = str[i+1+k];
+            {
+                number[k] = str[i+1+k];
+                k++;
+            }
             ints[j++] = atoi(number);
         }
     }
@@ -293,8 +295,6 @@ static gs_query* mysql_gs_query_new(gs_conn* conn, const char* sql_string)
     }
     if (mysql_stmt_prepare(query->stmt, query->base.sql, strlen(query->base.sql)) != 0)
     {
-        //char *err_test = g_strjoin(NULL, mysql_stmt_error(query->stmt), " SQL: ", "\"", query->base.sql, "\"", NULL);
-        //gs_set_error(conn, GS_ERR_OTHER, err_test);
         gs_set_error(conn, GS_ERR_OTHER, mysql_stmt_error(query->stmt));
         mysql_gs_query_free((gs_query*)query);
         return NULL;
@@ -310,12 +310,12 @@ static void mysql_gs_query_free(gs_query* query)
     {
         mysql_stmt_close(QUERY(query)->stmt);
         QUERY(query)->stmt = NULL;
-        //g_free(QUERY(query)->idx);
     }
     if (QUERY(query)->bind != NULL)
     {
         _mysql_free_stmt_vars(query);
     }
+    g_free(QUERY(query)->idx);
     g_free(query->sql);
     g_free(query);
     query = NULL;
@@ -340,46 +340,30 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
     }
     MYSQL_STMT* stmt = QUERY(query)->stmt;
     int col_count = mysql_stmt_field_count(stmt);
-    int i;
     
+    int ret;
     if (QUERY(query)->state == QUERY_STATE_ROW_PENDING)
     {
-        int ret = _mysql_prepare_stmt_vars(query, fmt, ap, col_count);
+        /* Bind variables with collumns. */
+        ret = _mysql_prepare_stmt_vars(query, fmt, ap, col_count);
         if (ret != 0)
-        {
             return ret;
-        }
     }
-    for (i = 0; i < col_count; i++)
-    {
-        if (QUERY(query)->val_is_null[i] != NULL)
-        {
-            *QUERY(query)->val_is_null[i]= 0;
-        }
-        if (QUERY(query)->mem_aloc[i])
-        {
-            *QUERY(query)->str = g_new0(char, CONN(query->conn)->max_col_len);
-            QUERY(query)->bind[i].buffer = *QUERY(query)->str;
-        }
-    }
-    
-    int ret = _mysql_stmt_fetch_prepare(query, col_count);
+
+    ret = _mysql_stmt_fetch_prepare(query, col_count);
     if (ret != 0)
-    {
         return ret;
-    }
-    int res = mysql_stmt_fetch(stmt);
+    ret = mysql_stmt_fetch(stmt);
     
-    switch (res)
+    switch (ret)
     {
         case 0: /* success */
         {
+            int i;
             for (i = 0; i < col_count; i++)
             {
                 if (QUERY(query)->my_null[i] && (QUERY(query)->val_is_null[i] != NULL))
-                {
                     *(QUERY(query)->val_is_null[i]) = 1;
-                }
             }
             break;
         }
@@ -407,23 +391,36 @@ static int mysql_gs_query_getv(gs_query* query, const char* fmt, va_list ap)
 }
 
 /*
- * Binds variables with columns.
+ * Returns real count of parameter in fmt string.
+ * Doesn't count question marks.
+ */
+static int _params_cnt(const char* fmt)
+{
+    int cnt = 0;
+    size_t i;
+    for (i = 0; i < strlen(fmt); i++)
+        if (fmt[i] != '?') cnt++;
+    return cnt;
+}
+
+/*
+ * Binds collumns with variables user wants store values into.
  */
 static int _mysql_prepare_stmt_vars(gs_query* query, const char* fmt, va_list ap, int col_count)
 {
     MYSQL_STMT* stmt = QUERY(query)->stmt;
-    int param_count = fmt != NULL ? strlen(fmt) : 0;
+    int fmt_len = (fmt != NULL) ? strlen(fmt) : 0;
     
     QUERY(query)->bind = g_new0(MYSQL_BIND, col_count);
     QUERY(query)->my_null = g_new0(my_bool, col_count);
     QUERY(query)->error = g_new0(my_bool, col_count);
     QUERY(query)->length = g_new0(unsigned long, col_count);
     QUERY(query)->val_is_null = g_new0(int *, col_count);
-    QUERY(query)->mem_aloc = g_new0(int *, col_count);
+    QUERY(query)->mem_aloc = g_new0(int, col_count);
     MYSQL_BIND *bind = QUERY(query)->bind;
     int i, col = 0;
 
-    for (i = 0; i < param_count; i++)
+    for (i = 0; i < fmt_len; i++)
     {
         if (fmt[i] == 's')
         {
@@ -448,7 +445,7 @@ static int _mysql_prepare_stmt_vars(gs_query* query, const char* fmt, va_list ap
             QUERY(query)->mem_aloc[col] = 1;
             col++;
         }
-        else if (fmt[i] == '?' && i<param_count-1 && fmt[i+1] == 'i')
+        else if ((fmt[i] == '?') && (i < fmt_len-1) && (fmt[i+1] == 'i'))
         {
             QUERY(query)->val_is_null[col] = (int*)va_arg(ap, int*);
         }
@@ -483,7 +480,9 @@ static int _mysql_prepare_stmt_vars(gs_query* query, const char* fmt, va_list ap
         return -1;
     }
     QUERY(query)->row_no = mysql_stmt_num_rows(QUERY(query)->stmt);
+    QUERY(query)->params_cnt = _params_cnt(fmt);
     QUERY(query)->state = QUERY_STATE_ROW_READ;
+    /* Now we can call mysql_stmt_fetch(..) and read collumns values. */
     
     return 0;
 }
@@ -504,10 +503,12 @@ static int _mysql_stmt_fetch_prepare(gs_query *query, int col_count)
         }
         if (QUERY(query)->mem_aloc[i])
         {
+            /* We don't want to free this memory, it's freed by user. */
             *QUERY(query)->str = g_new0(char, CONN(query->conn)->max_col_len);
             QUERY(query)->bind[i].buffer = *QUERY(query)->str;
         }
     }
+    /* We must rebind because we may have changed some addresses. */
     if (mysql_stmt_bind_result(QUERY(query)->stmt, QUERY(query)->bind) != 0)
     {
         gs_set_error(query->conn, GS_ERR_OTHER, mysql_stmt_error(QUERY(query)->stmt));
@@ -520,6 +521,13 @@ static int _mysql_stmt_fetch_prepare(gs_query *query, int col_count)
 
 static void _mysql_free_stmt_vars(gs_query *query)
 {
+    int i;
+    /* free memory allocated for string values */
+    for (i = 0; i < QUERY(query)->params_cnt; i++)
+    {
+        if (QUERY(query)->bind[i].buffer_type == MYSQL_TYPE_STRING)
+            g_free(QUERY(query)->bind[i].buffer);
+    }
     g_free(QUERY(query)->bind);
     g_free(QUERY(query)->my_null);
     g_free(QUERY(query)->error);
@@ -552,15 +560,22 @@ static int _param_used(gs_query* query, int idx)
 
 static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
 {
+    if (QUERY(query)->state == QUERY_STATE_ROW_READ)
+    {
+        /* Not all rows from previous query were proccesed
+         * so memory wasn't freed. */
+        _mysql_free_stmt_vars(query);
+    }
+
     MYSQL_STMT* stmt = QUERY(query)->stmt;
     int param_count = (fmt != NULL) ? strlen(fmt) : 0;
     int col_count = mysql_stmt_param_count(stmt);
-    int i, j;
-    my_bool my_null;
     MYSQL_BIND *bind = g_new0(MYSQL_BIND, col_count);
     long unsigned *lengths = g_new0(long unsigned, col_count);
     
-    for (i = 0, j = 0; i < param_count || j < col_count; i++, j++)
+    int i, j; /* i indexes ptr in fmt string, j indexes array of MYSQL_BINDs
+               * (addresses where params values will be put) */
+    for (i = 0, j = 0; (i < param_count) || (j < col_count); i++, j++)
     {
         /* Was the same parameter already used? */
         int idx = _param_used(query, j);
@@ -571,23 +586,18 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
             continue;
         }
         
-        
         int is_null = 0;
-        
         if (fmt[i] == '?')
         {
             is_null = (int)va_arg(ap, int);
             if (is_null)
-            {
                 bind[j].buffer_type = MYSQL_TYPE_NULL;
-            }
             i++;
         }
         
         if (fmt[i] == 's')
         {
             char* value = (char*)va_arg(ap, char*);
-            
             if (value != NULL)
             {
                 bind[j].buffer_type = MYSQL_TYPE_STRING;
