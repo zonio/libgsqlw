@@ -231,6 +231,8 @@ static char* _mysql_fixup_sql(const char* str)
             tmp[j] = '?';
             while (g_ascii_isdigit(str[i+1])) i++; /* to skip numbers after dollar sign */
         }
+        else if (str[i] == '\"')
+            tmp[j] = '`';   /* replace " with ` */
         else
             tmp[j] = str[i];
         j++;
