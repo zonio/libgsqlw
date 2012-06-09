@@ -118,6 +118,7 @@ void test7()
     gs_exec(c, "CREATE TABLE test2 (id INT UNIQUE, name1 TEXT NOT NULL, name2 TEXT NOT NULL)", NULL);
     gs_exec(c, "INSERT INTO test2 (id, name1, name2) VALUES ($1, $2, $2)", "is", 1, "hello");
     gs_exec(c, "INSERT INTO test2 (id, name1, name2) VALUES ($1, $2, $2)", "is", 2, "hello again");
+    gs_exec(c, "INSERT INTO test2 (id, name1, name2) VALUES ($2, $1, $1)", "si", "hola", 3);
 }
 
 int main(int ac, char* av[])
