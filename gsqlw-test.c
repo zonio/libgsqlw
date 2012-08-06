@@ -19,11 +19,17 @@
 
 #include <stdio.h>
 #include <unistd.h>
+
+#include <config.h>
 #include "gsqlw.h"
 
-#define DSN "mysql:dbname=test host=localhost user=user password=heslo"
-//#define DSN "pgsql:dbname=test host=localhost user=postgres password=heslo"
-//#define DSN "sqlite:.test.db"
+#ifdef HAVE_MYSQL
+# define DSN "mysql:dbname=test host=localhost user=user password=heslo"
+#elif HAVE_POSTGRES
+# define DSN "pgsql:dbname=test host=localhost user=postgres password=heslo"
+#elif HAVE_SQLITE
+# define DSN "sqlite:.test.db"
+#endif
 
 gs_query* q;
 gs_conn* c;

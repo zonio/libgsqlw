@@ -20,6 +20,8 @@
 #ifndef __GSQLW_PRIV_H__
 #define __GSQLW_PRIV_H__
 
+#include <config.h>
+
 #include "gsqlw.h"
 
 typedef struct _gs_driver gs_driver;
@@ -60,8 +62,14 @@ struct _gs_driver
   int (*query_get_last_id)(gs_query* query, const char* seq_name);
 };
 
+#ifdef HAVE_SQLITE
 extern gs_driver sqlite_driver;
+#endif
+#ifdef HAVE_POSTGRES
 extern gs_driver pgsql_driver;
+#endif
+#ifdef HAVE_MYSQL
 extern gs_driver mysql_driver;
+#endif
 
 #endif

@@ -2,12 +2,8 @@ AUTOMAKE_OPTIONS = foreign
 
 SUBDIRS = docs
 
-AM_CFLAGS = \
-  $(GLIB_CFLAGS) \
-  $(PGSQL_CFLAGS) \
-  $(MYSQL_CFLAGS)
-
-# library
+libgsqlw_la_CFLAGS = \
+  $(GLIB_CFLAGS)
 
 include_HEADERS = \
   gsqlw.h
@@ -16,10 +12,7 @@ lib_LTLIBRARIES = \
   libgsqlw.la
 
 libgsqlw_la_LIBADD = \
-  $(GLIB_LIBS) \
-  $(PGSQL_LIBS) \
-  $(SQLITE_LIBS) \
-  $(MYSQL_LIBS)
+  $(GLIB_LIBS)
 
 libgsqlw_la_LDFLAGS = \
   -version-info 0:0:0 -no-undefined -z now
@@ -27,10 +20,40 @@ libgsqlw_la_LDFLAGS = \
 libgsqlw_la_SOURCES = \
   gsqlw.h \
   gsqlw.c \
-  gsqlw-priv.h \
-  gsqlw-pgsql.c \
-  gsqlw-sqlite.c \
+  gsqlw-priv.h
+
+if POSTGRES
+libgsqlw_la_CFLAGS += \
+  $(PGSQL_CFLAGS)
+
+libgsqlw_la_LIBADD += \
+  $(PGSQL_LIBS)
+
+libgsqlw_la_SOURCES += \
+  gsqlw-pgsql.c
+endif
+
+if SQLITE
+libgsqlw_la_CFLAGS += \
+  $(SQLITE_CFLAGS)
+
+libgsqlw_la_LIBADD += \
+  $(SQLITE_LIBS)
+
+libgsqlw_la_SOURCES += \
+  gsqlw-sqlite.c
+endif
+
+if MYSQL
+libgsqlw_la_CFLAGS += \
+  $(MYSQL_CFLAGS)
+
+libgsqlw_la_LIBADD += \
+  $(MYSQL_LIBS)
+
+libgsqlw_la_SOURCES += \
   gsqlw-mysql.c
+endif
 
 # pkgconfig
 
@@ -44,6 +67,7 @@ EXTRA_DIST = libgsqlw.pc.in
 noinst_PROGRAMS = \
   gsqlw-test
 
+gsqlw_test_CFLAGS = $(GLIB_CFLAGS)
 gsqlw_test_SOURCES = gsqlw-test.c
 gsqlw_test_LDADD = libgsqlw.la
 gsqlw_test_LDFLAGS = -static

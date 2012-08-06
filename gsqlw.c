@@ -20,12 +20,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <config.h>
+
 #include "gsqlw-priv.h"
 
 static gs_driver* drivers[] = {
+#ifdef HAVE_SQLITE
   &sqlite_driver,
+#endif
+#ifdef HAVE_POSTGRES
   &pgsql_driver,
+#endif
+#ifdef HAVE_MYSQL
   &mysql_driver,
+#endif
 };
 
 #define CONN_DRIVER(c) \
