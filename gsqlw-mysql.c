@@ -322,6 +322,7 @@ static void mysql_gs_query_free(gs_query* query)
     if (QUERY(query)->bind != NULL)
     {
         _mysql_free_stmt_vars(query);
+        QUERY(query)->bind = NULL;
     }
     g_free(QUERY(query)->idx);
     g_free(query->sql);
@@ -532,35 +533,52 @@ static void _mysql_free_stmt_vars(gs_query *query)
 {
     int i;
     /* free memory allocated for string values */
-    for (i = 0; i < QUERY(query)->params_cnt; i++)
+    if (QUERY(query)->bind != NULL)
     {
-        if (QUERY(query)->bind[i].buffer_type == MYSQL_TYPE_STRING)
+        for (i = 0; i < QUERY(query)->params_cnt; i++)
         {
-            if (QUERY(query)->state == QUERY_STATE_COMPLETED)
+            if (QUERY(query)->bind[i].buffer_type == MYSQL_TYPE_STRING)
             {
-                g_free(QUERY(query)->bind[i].buffer);
-                if (QUERY(query)->str[i])
-                    *(QUERY(query)->str[i]) = NULL;
-            }
-            else
-            {
-                if (QUERY(query)->str[i] == NULL)
+                if (QUERY(query)->state == QUERY_STATE_COMPLETED)
+                {
                     g_free(QUERY(query)->bind[i].buffer);
+                    if (QUERY(query)->str[i])
+                        *(QUERY(query)->str[i]) = NULL;
+                }
+                else
+                {
+                    if (QUERY(query)->str[i] == NULL)
+                        g_free(QUERY(query)->bind[i].buffer);
+                }
             }
         }
+        g_free(QUERY(query)->bind);
+        QUERY(query)->bind = NULL;
     }
-    g_free(QUERY(query)->bind);
     g_free(QUERY(query)->my_null);
     g_free(QUERY(query)->error);
     g_free(QUERY(query)->length);
     g_free(QUERY(query)->val_is_null);
     g_free(QUERY(query)->str);
-    QUERY(query)->bind = NULL;
     QUERY(query)->my_null = NULL;
     QUERY(query)->error = NULL;
     QUERY(query)->length = NULL;
     QUERY(query)->val_is_null = NULL;
     QUERY(query)->str = NULL;
+}
+
+static void _mysql_bind_free(MYSQL_BIND *bind, int length)
+{
+    int i;
+    for (i = 0; i < length; i++)
+    {
+        if (bind[i].buffer_type != MYSQL_TYPE_NULL)
+        {
+            g_free(bind[i].buffer);
+        }
+    }
+    g_free(bind);
+    bind = NULL;
 }
 
 static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
@@ -593,11 +611,11 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
         
         if (fmt[i] == 's')
         {
-            char* value = (char*)va_arg(ap, char*);
+            char* value = g_strdup((char*)va_arg(ap, char*));
             if (value != NULL)
             {
                 bind_prep[j].buffer_type = MYSQL_TYPE_STRING;
-                bind_prep[j].buffer = (char *) value;
+                bind_prep[j].buffer = (char *)value;
                 bind_prep[j].buffer_length = value ? strlen(value) : 0;
                 lengths[j] = value ? strlen(value) : 0;
                 bind_prep[j].length = &lengths[j];
@@ -614,7 +632,8 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
             if (! is_null)
             {
                 bind_prep[j].buffer_type = MYSQL_TYPE_LONG;
-                bind_prep[j].buffer = (char *)&value;
+                bind_prep[j].buffer = g_new0(int, 1);
+                memcpy(bind_prep[j].buffer, &value, sizeof(int));
                 bind_prep[j].length = 0;
                 bind_prep[j].is_null = (my_bool *) 0;
             }
@@ -623,7 +642,7 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
         {
             gs_set_error(query->conn, GS_ERR_OTHER, "Invalid format string.");
             g_free(lengths);
-            g_free(bind_prep);
+            _mysql_bind_free(bind_prep, param_count);
             return -1;
         }
     }
@@ -635,14 +654,23 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
     {
         int idx = QUERY(query)->idx[i] - 1;  /* parameter index (number after $) */
         memcpy(bind+i, bind_prep+idx, sizeof(MYSQL_BIND));
+        if (bind[i].buffer_type == MYSQL_TYPE_LONG)
+        {
+            bind[i].buffer = g_new0(int, 1);
+            memcpy(bind[i].buffer, bind_prep[idx].buffer, sizeof(int));
+        }
+        else if (bind[i].buffer_type == MYSQL_TYPE_STRING)
+        {
+            bind[i].buffer = g_strdup(bind_prep[idx].buffer);
+        }
     }
-    g_free(bind_prep);
+    _mysql_bind_free(bind_prep, param_count);
     
     if (mysql_stmt_bind_param(stmt, bind) != 0)
     {
         gs_set_error(query->conn, GS_ERR_OTHER, mysql_stmt_error(stmt));
         g_free(lengths);
-        g_free(bind);
+        _mysql_bind_free(bind, col_count);
         return -1;
     }
     if (mysql_stmt_execute(stmt) != 0)
@@ -668,14 +696,14 @@ static int mysql_gs_query_putv(gs_query* query, const char* fmt, va_list ap)
             }
         }
         g_free(lengths);
-        g_free(bind);
+        _mysql_bind_free(bind, col_count);
         return -1;
     }
     
     QUERY(query)->state = QUERY_STATE_ROW_PENDING;
     
     g_free(lengths);
-    g_free(bind);
+    _mysql_bind_free(bind, col_count);
     return 0;
 }
 
