@@ -62,6 +62,9 @@ if test x$USE_POSTGRES != xno; then
 	done
 
 	if test -n "$PG_CONFIG"; then
+		AM_CONDITIONAL(POSTGRES_NO_DEV_FILES, [`pg_config > /dev/null; test $? -ne 0`])
+		AM_COND_IF(POSTGRES_NO_DEV_FILES,
+			AC_MSG_ERROR([missing client development files. Install libpq-dev/libpq-devel]))
 		AC_MSG_RESULT([$PG_CONFIG])
 		PGSQL_INCLUDE=`$PG_CONFIG --includedir`
 		PGSQL_LIBDIR=`$PG_CONFIG --libdir`
