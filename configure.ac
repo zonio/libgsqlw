@@ -1,12 +1,12 @@
-AC_PREREQ(2.57)
-AC_INIT([libgsqlw], [1.0.2-], [3e-list@zonio.net], libgsqlw)
+AC_PREREQ([2.69])
+AC_INIT([libgsqlw],[1.0.2-],[3e-list@zonio.net],[libgsqlw])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])
 AM_MAINTAINER_MODE
 
 # Checks for programs.
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_CC
 AC_PROG_CXX
 
@@ -22,7 +22,7 @@ AC_HEADER_STDC
 
 AC_DEFUN([BACKEND_ARG_ENABLE], [
 	AC_ARG_ENABLE($1,
-		AC_HELP_STRING([--disable-$1],[disable $1 (default: autodetect)]),
+		AS_HELP_STRING([--disable-$1],[disable $1 (default: autodetect)]),
 		[
 			case "${enableval}" in
 				yes) $2=yes ;;
@@ -152,8 +152,9 @@ AM_CONDITIONAL(POSTGRES, test x$USE_POSTGRES != xno)
 AM_CONDITIONAL(MYSQL, test x$USE_MYSQL != xno)
 
 # Output
-AC_OUTPUT([
+AC_CONFIG_FILES([
 	Makefile
 	docs/Makefile
 	libgsqlw.pc
 ])
+AC_OUTPUT
