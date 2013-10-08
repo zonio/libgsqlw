@@ -1,7 +1,7 @@
 AC_PREREQ(2.57)
 AC_INIT([libgsqlw], [1.0.2-], [3e-list@zonio.net], libgsqlw)
 AC_CONFIG_SRCDIR([Makefile.am])
-AM_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])
 AM_MAINTAINER_MODE
 
