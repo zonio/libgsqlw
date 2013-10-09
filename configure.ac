@@ -9,6 +9,17 @@ AM_MAINTAINER_MODE
 LT_INIT
 AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_INSTALL
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_SIZE_T
+
+# Checks for library functions.
+AC_CHECK_FUNCS([memset strchr])
 
 # Checks for pkg-config packages
 PKG_CHECK_MODULES(GLIB, [glib-2.0 >= 2.8.0 gthread-2.0 >= 2.8.0])
@@ -16,9 +27,6 @@ AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 
 CFLAGS="$CFLAGS -Wall -Wextra"
-
-# Checks for header files.
-AC_HEADER_STDC
 
 AC_DEFUN([BACKEND_ARG_ENABLE], [
 	AC_ARG_ENABLE($1,
