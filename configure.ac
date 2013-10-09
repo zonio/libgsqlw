@@ -8,7 +8,6 @@ AM_MAINTAINER_MODE
 # Checks for programs.
 LT_INIT
 AC_PROG_CC
-AC_PROG_CXX
 AC_PROG_INSTALL
 
 # Checks for header files.
@@ -141,7 +140,6 @@ if test x$USE_MYSQL != xno; then
 		ADDFLAGS="$ADDFLAGS $IBASE/storage/ndb/mgmapi"
 
 		CFLAGS="$CFLAGS $ADDFLAGS"
-		CXXFLAGS="$CXXFLAGS $ADDFLAGS"
 
 		LDFLAGS="$LDFLAGS "`$MYSQL_CONFIG --libs_r`
 		LDFLAGS="$LDFLAGS "`$MYSQL_CONFIG --libs_r`
