@@ -64,13 +64,13 @@ struct _gs_driver
 };
 
 #ifdef HAVE_SQLITE
-extern gs_driver sqlite_driver;
+extern gs_driver sqlite_driver G_GNUC_INTERNAL;
 #endif
 #ifdef HAVE_POSTGRES
-extern gs_driver pgsql_driver;
+extern gs_driver pgsql_driver G_GNUC_INTERNAL;
 #endif
 #ifdef HAVE_MYSQL
-extern gs_driver mysql_driver;
+extern gs_driver mysql_driver G_GNUC_INTERNAL;
 #endif
 
 #endif
