@@ -28,140 +28,126 @@ AC_SUBST(GLIB_LIBS)
 
 CFLAGS="$CFLAGS -Wall -Wextra"
 
-AC_DEFUN([BACKEND_ARG_ENABLE], [
-	AC_ARG_ENABLE($1,
-		AS_HELP_STRING([--disable-$1],[disable $1 (default: autodetect)]),
-		[
-			case "${enableval}" in
-				yes) $2=yes ;;
-				no)  $2=no ;;
-				*)   AC_MSG_ERROR(bad value ${enableval} for --enable-$1) ;;
-			esac
-		],
-		[$2=auto])
-	])
+AC_DEFUN([BACKEND_ARG_ENABLE],
+	 [
+	   AC_ARG_ENABLE($1,
+			 [AS_HELP_STRING([--disable-$1],[disable $1 (default: autodetect)])],
+			 [AS_CASE([$enableval],
+				  [yes], [$2=yes],
+				  [no], [$2=no],
+				  [auto], [$2=auto],
+				  [AC_MSG_ERROR([bad value $enableval for --enable-$1])])
+			 ],
+			 [$2=auto])
+	 ])
 
 BACKEND_ARG_ENABLE(mysql, USE_MYSQL)
 BACKEND_ARG_ENABLE(postgres, USE_POSTGRES)
 BACKEND_ARG_ENABLE(sqlite, USE_SQLITE)
 
-AC_ARG_WITH(mysql, [  --with-mysql=PATH path to mysql_config binary or mysql prefix dir], [
-		if test -x $withval -a -f $withval; then
-			MYSQL_CONFIG=$withval
-		elif test -x $withval/bin/mysql_config -a -f $withval/bin/mysql_config; then
-			MYSQL_CONFIG=$withval/bin/mysql_config
-		fi
-	], [
-		if test -x /usr/local/mysql/bin/mysql_config -a -f /usr/local/mysql/bin/mysql_config; then
-			MYSQL_CONFIG=/usr/local/mysql/bin/mysql_config
-		elif test -x /usr/bin/mysql_config -a -f /usr/bin/mysql_config; then
-			MYSQL_CONFIG=/usr/bin/mysql_config
-		fi
-	])
+AC_ARG_WITH([mysql],
+	    [AS_HELP_STRING([--with-mysql=PATH],[path to mysql_config binary or mysql prefix dir])],
+	    [with_mysql=$withval])
 
-if test x$USE_POSTGRES != xno; then
+AS_IF([test "x$USE_POSTGRES" != xno],
+      [
 	# Postgres
-	AC_MSG_CHECKING(for pg_config)
-	for i in /usr/local/pgsql/bin /usr/local/bin /usr/bin "" ; do
-		if test -x $i/pg_config; then
-			PG_CONFIG="$i/pg_config"
-			break
-		fi
-	done
+	AC_PATH_PROG([PG_CONFIG],[pg_config],[],[$PATH$PATH_SEPARATOR/usr/local/pgsql/bin$PATH_SEPARATOR/usr/local/bin$PATH_SEPARATOR/usr/bin$PATH_SEPARATOR/])
 
-	if test -n "$PG_CONFIG"; then
-		AM_CONDITIONAL(POSTGRES_NO_DEV_FILES, [`pg_config > /dev/null; test $? -ne 0`])
-		AM_COND_IF(POSTGRES_NO_DEV_FILES,
-			AC_MSG_ERROR([missing client development files. Install libpq-dev/libpq-devel]))
-		AC_MSG_RESULT([$PG_CONFIG])
+	AS_IF([test -n "$PG_CONFIG"],
+	      [
+		AS_IF([$PG_CONFIG > /dev/null],
+		      [],
+		      [AC_MSG_ERROR([missing client development files. Install libpq-dev/libpq-devel])])
 		PGSQL_INCLUDE=`$PG_CONFIG --includedir`
 		PGSQL_LIBDIR=`$PG_CONFIG --libdir`
-		AC_DEFINE(HAVE_PG_CONFIG_H,1,[Whether to have pg_config.h])
 		PGSQL_CFLAGS="-I$PGSQL_INCLUDE"
 		PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
 		AC_SUBST(PGSQL_CFLAGS)
 		AC_SUBST(PGSQL_LIBS)
-		AC_CHECK_LIB(pq, PQexecParams,AC_DEFINE(HAVE_PQEXECPARAMS,1,[PostgreSQL 7.4 or later]))
-		AC_CHECK_LIB(pq, PQprepare,AC_DEFINE(HAVE_PQPREPARE,1,[prepared statements]))
 		AC_DEFINE(HAVE_POSTGRES, 1, [Have postgres])
 		USE_POSTGRES=yes
-	elif test x$USE_POSTGRES = xyes; then
-		AC_MSG_ERROR([No postgres devel files found, install libpq-dev/libpq-devel])
-	else
-		USE_POSTGRES=no
-	fi
-fi
+	      ],
+	      [test "x$USE_POSTGRES" = xyes],
+	      [AC_MSG_ERROR([No postgres devel files found, install libpq-dev/libpq-devel])],
+	      [USE_POSTGRES=no])
+      ])
 
-if test x$USE_SQLITE != xno; then
+AS_IF([test "x$USE_SQLITE" != xno],
+      [
 	# Sqlite
+	PKG_CHECK_MODULES(SQLITE, [sqlite3],
+			  [USE_SQLITE=yes],
+			  [AS_IF([test x$USE_SQLITE = xyes],
+				 [AC_MSG_ERROR([No sqlite3 libraries found while explicitly requested])],
+				 [USE_SQLITE=no])])
 
-	PKG_CHECK_MODULES(SQLITE3, [sqlite3])
-	SQLITE_LIBS="-lsqlite3"
-	AC_SUBST(SQLITE_LIBS)
-
-	if test x$USE_SQLITE = xyes; then
-		PKG_CHECK_MODULES(SQLITE, sqlite3)
-		USE_SQLITE=yes
-	else
-		PKG_CHECK_MODULES(SQLITE, sqlite3, [USE_SQLITE=yes], [USE_SQLITE=no])
-	fi
-
-	if test x$USE_SQLITE = xyes; then
+	AS_IF([test "x$USE_SQLITE" = xyes],
+	      [
 		AC_SUBST(SQLITE_CFLAGS)
 		AC_SUBST(SQLITE_LIBS)
 
 		AC_DEFINE(HAVE_SQLITE, 1, [Have sqlite])
 
-		AS_IF([pkg-config 'sqlite3 >= 3.3.6'],
-			[AC_DEFINE(HAVE_SQLITE_V2_METHODS, 1, [whether sqlite supports new API])
-		])
-	fi
-fi
+		PKG_CHECK_EXISTS([sqlite3 >= 3.3.6],
+				 [AC_DEFINE(HAVE_SQLITE_V2_METHODS, 1, [whether sqlite supports new API])])
+	      ])
+      ])
 
-if test x$USE_MYSQL != xno; then
+AS_IF([test "x$USE_MYSQL" != xno],
+      [
 	# MySQL
-	AC_MSG_CHECKING(for mysql_config executable)
+	AS_IF([test "x$with_mysql" != x],
+	      [
+		AC_MSG_CHECKING(for mysql_config)
+		AS_IF([AS_EXECUTABLE_P("$with_mysql")],
+		      [MYSQL_CONFIG=$with_mysql],
+		      [AS_EXECUTABLE_P("$with_mysql/bin/mysql_config")],
+		      [MYSQL_CONFIG=$with_mysql/bin/mysql_config])
 
-	if test "x$MYSQL_CONFIG" = x; then
-		if test x$USE_MYSQL = yes; then
-			AC_MSG_ERROR([not found])
-		fi
-		AC_MSG_RESULT([not found])
-		USE_MYSQL=no
-	else
+		AS_IF([test "x$MYSQL_CONFIG" = x],
+		      [AC_MSG_RESULT([not found])],
+		      [AC_MSG_RESULT([$MYSQL_CONFIG])])
+	      ],
+	      [AC_PATH_PROG([MYSQL_CONFIG],[mysql_config],[],[$PATH$PATH_SEPARATOR/usr/local/mysql/bin$PATH_SEPARATOR/usr/bin])])
+
+	AS_IF([test "x$MYSQL_CONFIG" = x -a "x$USE_MYSQL" = xyes],
+	      [AC_MSG_ERROR([No MySQL libraries found while explicitly requested])])
+
+	AS_IF([test "x$MYSQL_CONFIG" = x],
+	      [USE_MYSQL=no],
+	      [
 		USE_MYSQL=yes
 
 		# add regular MySQL C flags
-		ADDFLAGS=`$MYSQL_CONFIG --cflags`
+		MYSQL_CFLAGS=`$MYSQL_CONFIG --cflags`
 
 		# add NDB API specific C flags
 		IBASE=`$MYSQL_CONFIG --include`
-		ADDFLAGS="$ADDFLAGS $IBASE/storage/ndb"
-		ADDFLAGS="$ADDFLAGS $IBASE/storage/ndb/ndbapi"
-		ADDFLAGS="$ADDFLAGS $IBASE/storage/ndb/mgmapi"
+		MYSQL_CFLAGS="$MYSQL_CFLAGS $IBASE/storage/ndb"
+		MYSQL_CFLAGS="$MYSQL_CFLAGS $IBASE/storage/ndb/ndbapi"
+		MYSQL_CFLAGS="$MYSQL_CFLAGS $IBASE/storage/ndb/mgmapi"
 
-		CFLAGS="$CFLAGS $ADDFLAGS"
+		MYSQL_LIBS=`$MYSQL_CONFIG --libs_r`
 
-		LDFLAGS="$LDFLAGS "`$MYSQL_CONFIG --libs_r`
-		LDFLAGS="$LDFLAGS "`$MYSQL_CONFIG --libs_r`
+		AC_SUBST(MYSQL_CFLAGS)
+		AC_SUBST(MYSQL_LIBS)
 
 		AC_DEFINE(HAVE_MYSQL, 1, [Have MySQL])
-		AC_MSG_RESULT($MYSQL_CONFIG)
-	fi
-fi
+	      ])
+      ])
 
-if test x$USE_MYSQL = xno -a x$USE_POSTGRES = xno -a x$USE_SQLITE = xno; then
-	AC_MSG_ERROR([You either don't have any of the supported database backends or you disabled them all])
-fi
+AS_IF([test "x$USE_MYSQL" = xno -a "x$USE_POSTGRES" = xno -a "x$USE_SQLITE" = xno],
+      [AC_MSG_ERROR(["You either don't have any of the supported database backends or you disabled them all"])])
 
-AM_CONDITIONAL(SQLITE, test x$USE_SQLITE != xno)
-AM_CONDITIONAL(POSTGRES, test x$USE_POSTGRES != xno)
-AM_CONDITIONAL(MYSQL, test x$USE_MYSQL != xno)
+AM_CONDITIONAL(SQLITE,   [test "x$USE_SQLITE" = xyes])
+AM_CONDITIONAL(POSTGRES, [test "x$USE_POSTGRES" = xyes])
+AM_CONDITIONAL(MYSQL,    [test "x$USE_MYSQL" = xyes])
 
 # Output
 AC_CONFIG_FILES([
-	Makefile
-	docs/Makefile
-	libgsqlw.pc
-])
+		  Makefile
+		  docs/Makefile
+		  libgsqlw.pc
+		])
 AC_OUTPUT
