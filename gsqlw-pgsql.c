@@ -39,7 +39,7 @@ struct _gs_query_pgsql
 #define CONN(c) ((struct _gs_conn_pgsql*)(c))
 #define QUERY(c) ((struct _gs_query_pgsql*)(c))
 
-void notices_black_hole(void* arg, const char* message)
+static void notices_black_hole(void* arg, const char* message)
 {
 }
 

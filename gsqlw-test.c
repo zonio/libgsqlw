@@ -32,12 +32,12 @@
 # define DSN "sqlite:.test.db"
 #endif
 
-gs_query* q;
-gs_conn* c;
+static gs_query* q;
+static gs_conn* c;
 
 /** gs_exec: create/insert
  */
-void test1()
+static void test1(void)
 {
   gs_exec(c, "CREATE TABLE test (id INT, name TEXT)", NULL);
   gs_exec(c, "INSERT INTO test (id, name) VALUES ($1, $2)", "is", 10, "blalbla");
@@ -45,7 +45,7 @@ void test1()
 
 /** gs_query: repeated inserts
  */
-void test2()
+static void test2(void)
 {
   q = gs_query_new(c, "INSERT INTO test (id, name) VALUES ($1, $2)");
   gs_query_put(q, "is", 1, "test 1");
@@ -61,7 +61,7 @@ void test2()
 
 /** gs_query: repeated selects
  */
-void test3()
+static void test3(void)
 {
   int id_val;
   int id_null;
@@ -86,7 +86,7 @@ void test3()
 
 /** gs_query_* methods
  */
-void test4()
+static void test4(void)
 {
   int id_val;
   char* str_val = NULL;
@@ -103,7 +103,7 @@ void test4()
 
 /** cosntraint violation tests
  */
-void test5()
+static void test5(void)
 {
   gs_exec(c, "CREATE TABLE ct (id INT UNIQUE, name TEXT NOT NULL)", NULL);
   gs_exec(c, "INSERT INTO ct (id, name) VALUES ($1, $2)", "is", 1, NULL);
@@ -111,7 +111,7 @@ void test5()
     g_print("ASSERT FAILED: should return GS_ERR_NOT_NULL_VIOLATION (%d:%s)\n", gs_get_errcode(c), gs_get_errmsg(c));
 }
 
-void test6()
+static void test6(void)
 {
   gs_exec(c, "CREATE TABLE ct (id INT UNIQUE, name TEXT NOT NULL)", NULL);
   gs_exec(c, "INSERT INTO ct (id, name) VALUES ($1, $2)", "is", 1, "text 1");
@@ -120,7 +120,7 @@ void test6()
     g_print("ASSERT FAILED: should return GS_ERR_UNIQUE_VIOLATION (%d:%s)\n", gs_get_errcode(c), gs_get_errmsg(c));
 }
 
-void test7()
+static void test7(void)
 {
     gs_exec(c, "CREATE TABLE test2 (id INT UNIQUE, name1 TEXT NOT NULL, name2 TEXT NOT NULL)", NULL);
     gs_exec(c, "INSERT INTO test2 (id, name1, name2) VALUES ($1, $2, $2)", "is", 1, "hello");

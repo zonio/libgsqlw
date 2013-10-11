@@ -82,7 +82,7 @@ static int sqlite_gs_rollback(gs_conn* conn)
   return gs_exec(conn, "ROLLBACK", NULL);
 }
 
-char* _sqlite_fixup_sql(const char* str)
+static char* _sqlite_fixup_sql(const char* str)
 {
   char* tmp = g_strdup(str);
   gboolean in_string = FALSE;
